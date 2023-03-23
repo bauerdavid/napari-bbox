@@ -50,11 +50,11 @@ class BoundingBoxLayer(Layer):
                  property_choices=None,
                  text=None,
                  edge_width=1,
-                 edge_color='black',
+                 edge_color='green',
                  edge_color_cycle=None,
                  edge_colormap='viridis',
                  edge_contrast_limits=None,
-                 face_color='white',
+                 face_color='transparent',
                  face_color_cycle=None,
                  face_colormap='viridis',
                  face_contrast_limits=None,
@@ -70,6 +70,7 @@ class BoundingBoxLayer(Layer):
                  blending='translucent',
                  visible=True,
     ):
+        print("constructor")
         if data is None:
             if ndim is None:
                 ndim = 2

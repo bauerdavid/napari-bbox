@@ -1,13 +1,36 @@
+
 __version__ = "0.0.1"
 
-from ._reader import napari_get_reader
-from ._widget import ExampleQWidget, example_magic_widget
-from ._writer import write_multiple, write_single_image
+from napari.layers import NAMES
+NAMES.add("bounding_boxes")
 
-__all__ = (
-    "napari_get_reader",
-    "write_single_image",
-    "write_multiple",
-    "ExampleQWidget",
-    "example_magic_widget",
-)
+from .boundingbox import BoundingBoxLayer
+from ._reader import napari_get_reader
+from ._writer import write_single_bbox
+
+from ._widget import BoundingBoxCreator
+
+from napari import Viewer
+def add_bounding_boxes(self, *args, **kwargs):
+    layer = BoundingBoxLayer(*args, **kwargs)
+    self.layers.append(layer)
+    return layer
+Viewer.add_bounding_boxes = add_bounding_boxes
+
+import npe2.manifest.contributions._writers
+from enum import Enum
+
+
+class LayerType(str, Enum):
+    image = "image"
+    labels = "labels"
+    points = "points"
+    shapes = "shapes"
+    surface = "surface"
+    tracks = "tracks"
+    vectors = "vectors"
+    bounding_boxes = "bounding_boxes"
+
+
+npe2.manifest.contributions._writers.LayerType = LayerType
+__all__ = ["BoundingBoxCreator", "BoundingBoxLayer", "napari_get_reader", "write_single_bbox"]

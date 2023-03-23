@@ -9,25 +9,18 @@ Replace code below according to your needs.
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, List, Sequence, Tuple, Union
+import numpy as np
 
 if TYPE_CHECKING:
     DataType = Union[Any, Sequence[Any]]
     FullLayerData = Tuple[DataType, dict, str]
 
 
-def write_single_image(path: str, data: Any, meta: dict) -> List[str]:
+def write_single_bbox(path: str, data: Any, meta: dict) -> List[str]:
     """Writes a single image layer"""
+    corners = np.asarray(
+        list(map(lambda bb: np.concatenate([bb.min(axis=0), bb.max(axis=0)]), data)))
 
-    # implement your writer logic here ...
-
-    # return path to any file(s) that were successfully written
+    np.savetxt(path, corners, "%.4f", ",")
     return [path]
 
-
-def write_multiple(path: str, data: List[FullLayerData]) -> List[str]:
-    """Writes multiple layers of different types."""
-
-    # implement your writer logic here ...
-
-    # return path to any file(s) that were successfully written
-    return [path]

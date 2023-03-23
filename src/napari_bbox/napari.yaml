@@ -4,38 +4,14 @@ contributions:
   commands:
     - id: napari-bbox.get_reader
       python_name: napari_bbox._reader:napari_get_reader
-      title: Open data with Bounding Box
-    - id: napari-bbox.write_multiple
-      python_name: napari_bbox._writer:write_multiple
-      title: Save multi-layer data with Bounding Box
-    - id: napari-bbox.write_single_image
-      python_name: napari_bbox._writer:write_single_image
-      title: Save image data with Bounding Box
-    - id: napari-bbox.make_qwidget
-      python_name: napari_bbox._widget:ExampleQWidget
-      title: Make example QWidget
-    - id: napari-bbox.make_magic_widget
-      python_name: napari_bbox._widget:example_magic_widget
-      title: Make example magic widget
-    - id: napari-bbox.make_func_widget
-      python_name: napari_bbox._widget:example_function_widget
-      title: Make example function widget
+      title: Open data with napari nD Bounding Box
+    - id: napari-bbox.create_bounding_box_layer_widget
+      python_name: napari_bbox._widget:BoundingBoxCreator
+      title: Create Bounding Box Layer
   readers:
     - command: napari-bbox.get_reader
       accepts_directories: false
-      filename_patterns: ['*.npy']
-  writers:
-    - command: napari-bbox.write_multiple
-      layer_types: ['image*','labels*']
-      filename_extensions: []
-    - command: napari-bbox.write_single_image
-      layer_types: ['image']
-      filename_extensions: ['.npy']
+      filename_patterns: ['*.csv']
   widgets:
-    - command: napari-bbox.make_qwidget
-      display_name: Example QWidget
-    - command: napari-bbox.make_magic_widget
-      display_name: Example Magic Widget
-    - command: napari-bbox.make_func_widget
-      autogenerate: true
-      display_name: Example Function Widget
+    - command: napari-bbox.create_bounding_box_layer_widget
+      display_name: Bounding Box Creator

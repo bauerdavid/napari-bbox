@@ -211,7 +211,7 @@ class QtBoundingBoxControls(QtLayerControls):
         bb_size_mult_slider.setSingleStep(0.1)
         bb_size_mult_slider.valueChanged.connect(self.changeSizeMultiplier)
         self.bb_size_mult_slider = bb_size_mult_slider
-        self.bb_size_mult_label = QLabel(trans._('size multiplier:'))
+        self.bb_size_mult_label = QLabel(trans._('size multiplier:'), parent=self)
         self._on_size_multiplier_change()
 
         bb_size_const_slider = QSlider(Qt.Horizontal)
@@ -221,7 +221,7 @@ class QtBoundingBoxControls(QtLayerControls):
         bb_size_const_slider.setSingleStep(1)
         bb_size_const_slider.valueChanged.connect(self.changeSizeConst)
         self.bb_size_const_slider = bb_size_const_slider
-        self.bb_size_const_label = QLabel(trans._('size constant: '))
+        self.bb_size_const_label = QLabel(trans._('size constant: '), parent=self)
         self._on_size_constant_change()
         self._on_size_mode_change()
 

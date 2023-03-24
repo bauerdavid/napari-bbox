@@ -3,7 +3,8 @@ __version__ = "0.0.1"
 
 from napari.layers import NAMES
 NAMES.add("bounding_boxes")
-
+from napari import types
+types.Bounding_BoxesData = types.NewType("Bounding_BoxesData", types.ArrayBase)
 from .boundingbox import BoundingBoxLayer
 from ._reader import napari_get_reader
 from ._writer import write_single_bbox

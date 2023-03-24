@@ -9,7 +9,17 @@
 
 A new layer for bounding boxes in 2+ dimensions
 
+> **Note**: This plugin was originally part of [Annotation Toolbox](https://www.napari-hub.org/plugins/napari-nD-annotator), and was separated to allow other plugins to utilize it.
+
+> **Note**: Currently the plugin does not support `napari==0.4.17`, see https://github.com/bauerdavid/napari-bbox/issues/4.
+
 ----------------------------------
+
+## Demo
+
+
+https://user-images.githubusercontent.com/36735863/227506511-d672ce5c-eab5-436f-a7fd-6080e118a9a8.mp4
+
 
 This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
 

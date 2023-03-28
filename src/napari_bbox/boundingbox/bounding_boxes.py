@@ -70,7 +70,6 @@ class BoundingBoxLayer(Layer):
                  blending='translucent',
                  visible=True,
     ):
-        print("constructor")
         if data is None:
             if ndim is None:
                 ndim = 2
@@ -705,6 +704,12 @@ class BoundingBoxLayer(Layer):
     @property
     def _indices_view(self):
         return np.where(self._data_view._displayed)[0]
+
+    @property
+    def _view_text_color(self) -> np.ndarray:
+        """Get the colors of the text elements at the given indices."""
+        self.text.color._apply(self.features)
+        return self.text._view_color(self._indices_view)
 
     @property
     def mode(self):

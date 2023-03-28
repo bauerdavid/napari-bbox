@@ -32,5 +32,5 @@ class LayerType(str, Enum):
     bounding_boxes = "bounding_boxes"
 
 
-npe2.manifest.contributions._writers.LayerType = LayerType
+# npe2.manifest.contributions._writers.LayerType = LayerType
 __all__ = ["BoundingBoxCreator", "BoundingBoxLayer", "napari_get_reader", "write_single_bbox"]

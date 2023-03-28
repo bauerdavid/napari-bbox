@@ -4,6 +4,7 @@ from typing import Iterable
 import napari
 from napari._qt.widgets.qt_color_swatch import QColorSwatchEdit
 from napari.utils.action_manager import action_manager
+from packaging import version
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QButtonGroup, QGridLayout, QLabel, QHBoxLayout, QCheckBox, QComboBox
 from napari._qt.widgets._slider_compat import QDoubleSlider, QSlider
@@ -237,10 +238,16 @@ class QtBoundingBoxControls(QtLayerControls):
         )
         self._on_current_edge_color_change()
 
-        self.textColorEdit = QColorSwatchEdit(
-            initial_color=self.layer.text.color,
-            tooltip=trans._('click to set current text color'),
-        )
+        if version.parse(napari.__version__) < version.parse("0.4.17"):
+            self.textColorEdit = QColorSwatchEdit(
+                initial_color=self.layer.text.color,
+                tooltip=trans._('click to set current text color'),
+            )
+        else:
+            self.textColorEdit = QColorSwatchEdit(
+                initial_color=self.layer.text.color.constant,
+                tooltip=trans._('click to set current text color'),
+            )
         self._on_current_text_color_change()
 
         self.faceColorEdit.color_changed.connect(self.changeFaceColor)
@@ -461,7 +468,10 @@ class QtBoundingBoxControls(QtLayerControls):
             The napari event that triggered this method, by default None.
         """
         with qt_signals_blocked(self.textColorEdit):
-            self.textColorEdit.setColor(self.layer.text.color)
+            if version.parse(napari.__version__) < version.parse("0.4.17"):
+                self.textColorEdit.setColor(self.layer.text.color)
+            else:
+                self.textColorEdit.setColor(self.layer.text.color.constant)
 
     def _on_editable_change(self, event=None):
         """Receive layer model editable change event & enable/disable buttons.

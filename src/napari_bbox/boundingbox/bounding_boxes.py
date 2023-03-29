@@ -2109,12 +2109,3 @@ class BoundingBoxLayer(Layer):
 
         if not self.editable:
             self.mode = Mode.PAN_ZOOM
-
-
-# This is an ugly solution to register every component correctly
-register_layer_control(BoundingBoxLayer)
-register_layer_visual(BoundingBoxLayer)
-# register_bounding_boxes_actions(BoundingBoxLayer)
-import sys
-napari.layers.__dict__["BoundingBoxLayer"] = BoundingBoxLayer
-napari.layers.__dict__["bounding_boxes"] = sys.modules[__name__]

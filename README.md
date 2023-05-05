@@ -11,8 +11,6 @@ A new layer for bounding boxes in 2+ dimensions
 
 > **Note**: This plugin was originally part of [Annotation Toolbox](https://www.napari-hub.org/plugins/napari-nD-annotator), and was separated to allow other plugins to utilize it.
 
-> **Note**: Currently the plugin does not support `napari==0.4.17`, see https://github.com/bauerdavid/napari-bbox/issues/4.
-
 ----------------------------------
 
 ## Demo

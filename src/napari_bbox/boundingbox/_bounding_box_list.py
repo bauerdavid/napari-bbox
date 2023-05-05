@@ -180,6 +180,8 @@ class BoundingBoxList:
     def _update_displayed(self):
         """Update the displayed data based on the slice key."""
         slice_key = np.array(self.slice_key)
+        if len(slice_key) != self.slice_keys.shape[-1]:
+            return
         if len(self.bounding_boxes) > 0:
             self._displayed = np.all(np.logical_and(self.slice_keys[:, 0, :] <= slice_key, slice_key <= self.slice_keys[:, 1, :]), axis=1)
         else:

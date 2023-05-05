@@ -20,7 +20,7 @@ def select(layer, event):
     """
     shift = 'Shift' in event.modifiers
     # on press
-    value = layer.get_value(event.position, world=True)
+    value = layer.get_value(event.position, world=True) or (None, None)
     layer._moving_value = copy(value)
     bounding_box_under_cursor, vertex_under_cursor = value
     if vertex_under_cursor is None:

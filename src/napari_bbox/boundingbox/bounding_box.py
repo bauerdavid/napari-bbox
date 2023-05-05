@@ -135,34 +135,41 @@ class BoundingBox(ABC):
         """Update the data that is to be displayed."""
         # Add four boundary lines and then two triangles for each
 
-
         if self.ndisplay == 2:
             self._set_meshes(self.data_displayed, face=False)
             self._face_vertices = self.data_displayed
             self._face_triangles = np.array([[0, 1, 2], [0, 2, 3]])
         else:
-            ordered_vertices = self.data_displayed[
-                [
-                    0, 1, 3, 2, 0, 4, 6, 2, 3, 7, 6, 4, 5, 7, 3, 1, 5
+            if len(self.data_displayed) == 4:
+                ordered_vertices = self.data_displayed[[0, 1, 3, 2, 0]]
+                self._set_meshes(ordered_vertices, closed=False, face=False)
+                self._face_triangles = np.array([
+                    [0, 1, 2],
+                    [2, 3, 1],
+                ])
+                self._face_vertices = self.data_displayed
+            else:
+                ordered_vertices = self.data_displayed[
+                    [0, 1, 3, 2, 0, 4, 6, 2, 3, 7, 6, 4, 5, 7, 3, 1, 5]
                 ]
-            ]
-            self._set_meshes(ordered_vertices, closed=False, face=False)
-            self._face_triangles = np.array([[0, 0, 0]])
-            # self._face_triangles = np.array([
-            #     [0, 1, 2],
-            #     [2, 3, 1],
-            #     [0, 4, 1],
-            #     [1, 4, 5],
-            #     [0, 2, 6],
-            #     [0, 6, 4],
-            #     [7, 4, 6],
-            #     [7, 5, 4],
-            #     [7, 6, 2],
-            #     [7, 2, 3],
-            #     [7, 3, 1],
-            #     [7, 1, 5]
-            # ])
+                self._set_meshes(ordered_vertices, closed=False, face=False)
+                # self._face_triangles = np.array([
+                #     [0, 1, 2],
+                #     [2, 1, 3],
+                #     [0, 4, 1],
+                #     [1, 4, 5],
+                #     [0, 2, 6],
+                #     [0, 6, 4],
+                #     [7, 4, 6],
+                #     [7, 5, 4],
+                #     [7, 6, 2],
+                #     [7, 2, 3],
+                #     [7, 3, 1],
+                #     [7, 1, 5]
+                # ])
             # self._face_triangles = np.append(self._face_triangles, np.fliplr(self._face_triangles), 0)
+            # self._face_vertices = self.data_displayed
+            self._face_triangles = np.array([[0, 0, 0]])
 
         if self.ndisplay == 2:
             self._box = rectangle_to_box(self.data_displayed)

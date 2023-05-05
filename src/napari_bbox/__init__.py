@@ -1,4 +1,4 @@
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 from napari import layers
 layers.NAMES.add("bounding_boxes")

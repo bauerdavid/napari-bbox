@@ -215,7 +215,7 @@ class QtBoundingBoxControls(QtLayerControls):
         self.bb_size_mult_label = QLabel(trans._('size multiplier:'), parent=self)
         self._on_size_multiplier_change()
 
-        bb_size_const_slider = QSlider(Qt.Horizontal)
+        bb_size_const_slider = QDoubleSlider(Qt.Horizontal, parent=self)
         bb_size_const_slider.setFocusPolicy(Qt.NoFocus)
         bb_size_const_slider.setMinimum(1)
         bb_size_const_slider.setMaximum(100)

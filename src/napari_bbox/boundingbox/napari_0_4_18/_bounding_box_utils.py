@@ -1,40 +1,23 @@
 # A copy of napari.layers.shapes._shapes_utils
-import itertools
-from typing import Tuple
+from __future__ import annotations
 
+from typing import TYPE_CHECKING, Tuple
+import itertools
 import numpy as np
-from napari.layers.utils.layer_utils import segment_normal
-from napari.utils.translations import trans
 from vispy.geometry import PolygonData
 from vispy.visuals.tube import _frenet_frames
 
+from napari.layers.utils.layer_utils import segment_normal
+from napari.utils.translations import trans
 
+if TYPE_CHECKING:
+    import numpy.typing as npt
 
-def inside_triangles(triangles):
-    """Checks which triangles contain the origin
-
-    Parameters
-    ----------
-    triangles : (N, 3, 2) array
-        Array of N triangles that should be checked
-
-    Returns
-    -------
-    inside : (N,) array of bool
-        Array with `True` values for trinagles containing the origin
-    """
-
-    AB = triangles[:, 1, :] - triangles[:, 0, :]
-    AC = triangles[:, 2, :] - triangles[:, 0, :]
-    BC = triangles[:, 2, :] - triangles[:, 1, :]
-
-    s_AB = -AB[:, 0] * triangles[:, 0, 1] + AB[:, 1] * triangles[:, 0, 0] >= 0
-    s_AC = -AC[:, 0] * triangles[:, 0, 1] + AC[:, 1] * triangles[:, 0, 0] >= 0
-    s_BC = -BC[:, 0] * triangles[:, 1, 1] + BC[:, 1] * triangles[:, 1, 0] >= 0
-
-    inside = np.all(np.array([s_AB != s_AC, s_AB == s_BC]), axis=0)
-
-    return inside
+try:
+    # see https://github.com/vispy/vispy/issues/1029
+    from triangle import triangulate
+except ModuleNotFoundError:
+    triangulate = None
 
 
 def inside_boxes(boxes):
@@ -282,11 +265,7 @@ def is_collinear(points):
 
     # The collinearity test takes three points, the first two are the first
     # two in the list, and then the third is iterated through in the loop
-    for p in points[2:]:
-        if orientation(points[0], points[1], p) != 0:
-            return False
-
-    return True
+    return all(orientation(points[0], points[1], p) == 0 for p in points[2:])
 
 
 def point_to_lines(point, lines):
@@ -435,7 +414,7 @@ def find_corners(data):
     Returns
     -------
     corners : np.ndarray
-        4x2 array of corners of the boudning box
+        4x2 array of corners of the bounding box
     """
     min_val = data.min(axis=0)
     max_val = data.max(axis=0)
@@ -445,11 +424,6 @@ def find_corners(data):
     bl = np.array([min_val[0], max_val[1]])
     corners = np.array([tl, tr, br, bl])
     return corners
-
-def powerset(iterable):
-    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
-    s = list(iterable)
-    return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s) + 1))
 
 def find_bbox_corners(data):
     min_val = data.min(axis=0, keepdims=True)
@@ -474,90 +448,12 @@ def center_radii_to_corners(center, radii):
     Returns
     -------
     corners : np.ndarray
-        4x2 array of corners of the boudning box
+        4x2 array of corners of the bounding box
     """
     data = np.array([center + radii, center - radii])
     corners = find_corners(data)
     return corners
 
-
-def triangulate_ellipse(corners, num_segments=100):
-    """Determines the triangulation of a path. The resulting `offsets` can
-    multiplied by a `width` scalar and be added to the resulting `centers`
-    to generate the vertices of the triangles for the triangulation, i.e.
-    `vertices = centers + width*offsets`. Using the `centers` and `offsets`
-    representation thus allows for the computed triangulation to be
-    independent of the line width.
-
-    Parameters
-    ----------
-    corners : np.ndarray
-        4xD array of four bounding corners of the ellipse. The ellipse will
-        still be computed properly even if the rectangle determined by the
-        corners is not axis aligned
-    num_segments : int
-        Integer determining the number of segments to use when triangulating
-        the ellipse
-
-    Returns
-    -------
-    vertices : np.ndarray
-        Mx2 array coordinates of vertices for triangulating an ellipse.
-        Includes the center vertex of the ellipse, followed by `num_segments`
-        vertices around the boundary of the ellipse
-    triangles : np.ndarray
-        Px2 array of the indices of the vertices for the triangles of the
-        triangulation. Has length given by `num_segments`
-    """
-    if not corners.shape[0] == 4:
-        raise ValueError(
-            trans._(
-                "Data shape does not match expected `[4, D]` shape specifying corners for the ellipse",
-                deferred=True,
-            )
-        )
-
-    center = corners.mean(axis=0)
-    adjusted = corners - center
-
-    vec = adjusted[1] - adjusted[0]
-    len_vec = np.linalg.norm(vec)
-    if len_vec > 0:
-        # rotate to be axis aligned
-        norm_vec = vec / len_vec
-        if corners.shape[1] == 2:
-            transform = np.array(
-                [[norm_vec[0], -norm_vec[1]], [norm_vec[1], norm_vec[0]]]
-            )
-        else:
-            transform = np.array(
-                [
-                    [0, 0],
-                    [norm_vec[0], -norm_vec[1]],
-                    [norm_vec[1], norm_vec[0]],
-                ]
-            )
-        adjusted = np.matmul(adjusted, transform)
-    else:
-        transform = np.eye(corners.shape[1])
-
-    radii = abs(adjusted[0])
-    vertices = np.zeros((num_segments + 1, 2), dtype=np.float32)
-    theta = np.linspace(0, np.deg2rad(360), num_segments)
-    vertices[1:, 0] = radii[0] * np.cos(theta)
-    vertices[1:, 1] = radii[1] * np.sin(theta)
-
-    if len_vec > 0:
-        # rotate back
-        vertices = np.matmul(vertices, transform.T)
-
-    # Shift back to center
-    vertices = vertices + center
-
-    triangles = np.array([[0, i + 1, i + 2] for i in range(num_segments)])
-    triangles[-1, 2] = 1
-
-    return vertices, triangles
 
 
 def triangulate_face(data):
@@ -571,12 +467,26 @@ def triangulate_face(data):
     Returns
     -------
     vertices : np.ndarray
-        Mx2 array vertices of the trinagles.
+        Mx2 array vertices of the triangles.
     triangles : np.ndarray
         Px3 array of the indices of the vertices that will form the
         triangles of the triangulation
     """
-    vertices, triangles = PolygonData(vertices=data).triangulate()
+
+    if triangulate is not None:
+        len_data = len(data)
+
+        edges = np.empty((len_data, 2), dtype=np.uint32)
+        edges[:, 0] = np.arange(len_data)
+        edges[:, 1] = np.arange(1, len_data + 1)
+        # connect last with first vertex
+        edges[-1, 1] = 0
+
+        res = triangulate({"vertices": data, "segments": edges}, "p")
+        vertices, triangles = res['vertices'], res['triangles']
+    else:
+        vertices, triangles = PolygonData(vertices=data).triangulate()
+
     triangles = triangles.astype(np.uint32)
 
     return vertices, triangles
@@ -600,7 +510,7 @@ def triangulate_edge(path, closed=False):
     Returns
     -------
     centers : np.ndarray
-        Mx2 or Mx3 array central coordinates of path trinagles.
+        Mx2 or Mx3 array central coordinates of path triangles.
     offsets : np.ndarray
         Mx2 or Mx3 array of the offsets to the central coordinates that need to
         be scaled by the line width and then added to the centers to
@@ -609,15 +519,14 @@ def triangulate_edge(path, closed=False):
         Px3 array of the indices of the vertices that will form the
         triangles of the triangulation
     """
+
+    path = np.asanyarray(path)
+
     # Remove any equal adjacent points
     if len(path) > 2:
-        clean_path = np.array(
-            [
-                p
-                for i, p in enumerate(path)
-                if i == 0 or not np.all(p == path[i - 1])
-            ]
-        )
+        idx = np.concatenate([[True], ~np.all(path[1:] == path[:-1], axis=-1)])
+        clean_path = path[idx].copy()
+
         if clean_path.shape[0] == 1:
             clean_path = np.concatenate((clean_path, clean_path), axis=0)
     else:
@@ -633,6 +542,26 @@ def triangulate_edge(path, closed=False):
         )
 
     return centers, offsets, triangles
+
+
+def _mirror_point(x, y):
+    return 2 * y - x
+
+
+def _sign_nonzero(x):
+    y = np.sign(x).astype(int)
+    y[y == 0] = 1
+    return y
+
+
+def _sign_cross(x, y):
+    """sign of cross product (faster for 2d)"""
+    if x.shape[1] == y.shape[1] == 2:
+        return _sign_nonzero(x[:, 0] * y[:, 1] - x[:, 1] * y[:, 0])
+    if x.shape[1] == y.shape[1] == 3:
+        return _sign_nonzero(np.cross(x, y))
+
+    raise ValueError(x.shape[1], y.shape[1])
 
 
 def generate_2D_edge_meshes(path, closed=False, limit=3, bevel=False):
@@ -659,7 +588,7 @@ def generate_2D_edge_meshes(path, closed=False, limit=3, bevel=False):
     Returns
     -------
     centers : np.ndarray
-        Mx2 or Mx3 array central coordinates of path trinagles.
+        Mx2 or Mx3 array central coordinates of path triangles.
     offsets : np.ndarray
         Mx2 or Mx3 array of the offsets to the central coordinates that need to
         be scaled by the line width and then added to the centers to
@@ -668,135 +597,117 @@ def generate_2D_edge_meshes(path, closed=False, limit=3, bevel=False):
         Px3 array of the indices of the vertices that will form the
         triangles of the triangulation
     """
-    clean_path = np.array(path).astype(float)
 
+    path = np.asarray(path, dtype=float)
+
+    # add first vertex to the end if closed
     if closed:
-        if np.all(clean_path[0] == clean_path[-1]) and len(clean_path) > 2:
-            clean_path = clean_path[:-1]
-        full_path = np.concatenate(
-            ([clean_path[-1]], clean_path, [clean_path[0]]), axis=0
-        )
-        normals = [
-            segment_normal(full_path[i], full_path[i + 1])
-            for i in range(len(clean_path))
-        ]
-        normals = np.array(normals)
-        full_path = np.concatenate((clean_path, [clean_path[0]]), axis=0)
-        full_normals = np.concatenate((normals, [normals[0]]), axis=0)
+        path = np.concatenate((path, [path[0]]))
+
+    # extend path by adding a vertex at beginning and end
+    # to get the mean normals correct
+    if closed:
+        _ext_point1 = path[-2]
+        _ext_point2 = path[1]
     else:
-        full_path = np.concatenate((clean_path, [clean_path[-2]]), axis=0)
-        normals = [
-            segment_normal(full_path[i], full_path[i + 1])
-            for i in range(len(clean_path))
-        ]
-        normals[-1] = -normals[-1]
-        normals = np.array(normals)
-        full_path = clean_path
-        full_normals = np.concatenate(([normals[0]], normals), axis=0)
+        _ext_point1 = _mirror_point(path[1], path[0])
+        _ext_point2 = _mirror_point(path[-2], path[-1])
 
-    miters = np.array(
-        [full_normals[i : i + 2].mean(axis=0) for i in range(len(full_path))]
+    full_path = np.concatenate(([_ext_point1], path, [_ext_point2]), axis=0)
+
+    # full_normals[:-1], full_normals[1:] are normals left and right of each path vertex
+    full_normals = segment_normal(full_path[:-1], full_path[1:])
+
+    # miters per vertex are the average of left and right normals
+    miters = 0.5 * (full_normals[:-1] + full_normals[1:])
+
+    # scale miters such that their dot product with normals is 1
+    _mf_dot = np.expand_dims(
+        np.einsum('ij,ij->i', miters, full_normals[:-1]), -1
     )
-    miters = np.array(
-        [
-            miters[i] / np.dot(miters[i], full_normals[i])
-            if np.dot(miters[i], full_normals[i]) != 0
-            else full_normals[i]
-            for i in range(len(full_path))
-        ]
+
+    miters = np.divide(
+        miters,
+        _mf_dot,
+        where=np.abs(_mf_dot) > 1e-10,
     )
-    miter_lengths = np.linalg.norm(miters, axis=1)
+
+    miter_lengths_squared = (miters**2).sum(axis=1)
+
+    # miter_signs -> +1 if edges turn clockwise, -1 if anticlockwise
+    # used later to discern bevel positions
+    miter_signs = _sign_cross(full_normals[1:], full_normals[:-1])
     miters = 0.5 * miters
-    vertex_offsets = []
-    central_path = []
-    triangles = []
-    m = 0
 
-    for i in range(len(full_path)):
-        if i == 0:
-            if (bevel or miter_lengths[i] > limit) and closed:
-                offset = np.array([miters[i, 1], -miters[i, 0]])
-                offset = 0.5 * offset / np.linalg.norm(offset)
-                flip = np.sign(np.dot(offset, full_normals[i]))
-                vertex_offsets.append(offset)
-                vertex_offsets.append(
-                    -flip * miters[i] / miter_lengths[i] * limit
-                )
-                vertex_offsets.append(-offset)
-                central_path.append(full_path[i])
-                central_path.append(full_path[i])
-                central_path.append(full_path[i])
-                triangles.append([0, 1, 2])
-                m = m + 1
-            else:
-                vertex_offsets.append(-miters[i])
-                vertex_offsets.append(miters[i])
-                central_path.append(full_path[i])
-                central_path.append(full_path[i])
-        elif i == len(full_path) - 1:
-            if closed:
-                a = vertex_offsets[m + 1]
-                b = vertex_offsets[1]
-                ray = full_path[i] - full_path[i - 1]
-                if np.cross(a, ray) * np.cross(b, ray) > 0:
-                    triangles.append([m, m + 1, 1])
-                    triangles.append([m, 0, 1])
-                else:
-                    triangles.append([m, m + 1, 1])
-                    triangles.append([m + 1, 0, 1])
-            else:
-                vertex_offsets.append(-miters[i])
-                vertex_offsets.append(miters[i])
-                central_path.append(full_path[i])
-                central_path.append(full_path[i])
-                a = vertex_offsets[m + 1]
-                b = vertex_offsets[m + 3]
-                ray = full_path[i] - full_path[i - 1]
-                if np.cross(a, ray) * np.cross(b, ray) > 0:
-                    triangles.append([m, m + 1, m + 3])
-                    triangles.append([m, m + 2, m + 3])
-                else:
-                    triangles.append([m, m + 1, m + 3])
-                    triangles.append([m + 1, m + 2, m + 3])
-        elif bevel or miter_lengths[i] > limit:
-            offset = np.array([miters[i, 1], -miters[i, 0]])
-            offset = 0.5 * offset / np.linalg.norm(offset)
-            flip = np.sign(np.dot(offset, full_normals[i]))
-            vertex_offsets.append(offset)
-            vertex_offsets.append(-flip * miters[i] / miter_lengths[i] * limit)
-            vertex_offsets.append(-offset)
-            central_path.append(full_path[i])
-            central_path.append(full_path[i])
-            central_path.append(full_path[i])
-            a = vertex_offsets[m + 1]
-            b = vertex_offsets[m + 3]
-            ray = full_path[i] - full_path[i - 1]
-            if np.cross(a, ray) * np.cross(b, ray) > 0:
-                triangles.append([m, m + 1, m + 3])
-                triangles.append([m, m + 2, m + 3])
-            else:
-                triangles.append([m, m + 1, m + 3])
-                triangles.append([m + 1, m + 2, m + 3])
-            triangles.append([m + 2, m + 3, m + 4])
-            m = m + 3
-        else:
-            vertex_offsets.append(-miters[i])
-            vertex_offsets.append(miters[i])
-            central_path.append(full_path[i])
-            central_path.append(full_path[i])
-            a = vertex_offsets[m + 1]
-            b = vertex_offsets[m + 3]
-            ray = full_path[i] - full_path[i - 1]
-            if np.cross(a, ray) * np.cross(b, ray) > 0:
-                triangles.append([m, m + 1, m + 3])
-                triangles.append([m, m + 2, m + 3])
-            else:
-                triangles.append([m, m + 1, m + 3])
-                triangles.append([m + 1, m + 2, m + 3])
-            m = m + 2
-    centers = np.array(central_path)
-    offsets = np.array(vertex_offsets)
-    triangles = np.array(triangles)
+    # generate centers/offsets
+    centers = np.repeat(path, 2, axis=0)
+    offsets = np.repeat(miters, 2, axis=0)
+    offsets[::2] *= -1
+
+    triangles0 = np.tile(np.array([[0, 1, 3], [0, 3, 2]]), (len(path) - 1, 1))
+    triangles = triangles0 + 2 * np.repeat(
+        np.arange(len(path) - 1)[:, np.newaxis], 2, 0
+    )
+
+    # get vertex indices that are to be beveled
+    idx_bevel = np.where(
+        np.bitwise_or(bevel, miter_lengths_squared > (limit**2))
+    )[0]
+
+    if len(idx_bevel) > 0:
+        # only the 'outwards sticking' offsets should be changed
+        # TODO: This is not entirely true as in extreme cases both can go to infinity
+        idx_offset = (miter_signs[idx_bevel] < 0).astype(int)
+        idx_bevel_full = 2 * idx_bevel + idx_offset
+        sign_bevel = np.expand_dims(miter_signs[idx_bevel], -1)
+
+        # adjust offset of outer "left" vertex
+        offsets[idx_bevel_full] = (
+            -0.5 * full_normals[:-1][idx_bevel] * sign_bevel
+        )
+
+        # special cases for the last vertex
+        _nonspecial = idx_bevel != len(path) - 1
+
+        idx_bevel = idx_bevel[_nonspecial]
+        idx_bevel_full = idx_bevel_full[_nonspecial]
+        sign_bevel = sign_bevel[_nonspecial]
+        idx_offset = idx_offset[_nonspecial]
+
+        # create new "right" bevel vertices to be added later
+        centers_bevel = path[idx_bevel]
+        offsets_bevel = -0.5 * full_normals[1:][idx_bevel] * sign_bevel
+
+        n_centers = len(centers)
+        # change vertices of triangles to the newly added right vertices
+        triangles[2 * idx_bevel, idx_offset] = len(centers) + np.arange(
+            len(idx_bevel)
+        )
+        triangles[
+            2 * idx_bevel + (1 - idx_offset), idx_offset
+        ] = n_centers + np.arange(len(idx_bevel))
+
+        # add center triangle
+        triangles0 = np.tile(np.array([[0, 1, 2]]), (len(idx_bevel), 1))
+
+        triangles_bevel = np.array(
+            [
+                2 * idx_bevel + idx_offset,
+                2 * idx_bevel + (1 - idx_offset),
+                n_centers + np.arange(len(idx_bevel)),
+            ]
+        ).T
+
+        # add all new centers, offsets, and triangles
+        centers = np.concatenate([centers, centers_bevel])
+        offsets = np.concatenate([offsets, offsets_bevel])
+        triangles = np.concatenate([triangles, triangles_bevel])
+
+    # extracting vectors (~4x faster than np.moveaxis)
+    a, b, c = tuple((centers + offsets)[triangles][:, i] for i in range(3))
+    # flip negative oriented triangles
+    flip_idx = _sign_cross(b - a, c - a) < 0
+    triangles[flip_idx] = np.flip(triangles[flip_idx], axis=-1)
 
     return centers, offsets, triangles
 
@@ -805,7 +716,7 @@ def generate_tube_meshes(path, closed=False, tube_points=10):
     """Generates list of mesh vertices and triangles from a path
 
     Adapted from vispy.visuals.TubeVisual
-    https://github.com/vispy/vispy/blob/master/vispy/visuals/tube.py
+    https://github.com/vispy/vispy/blob/main/vispy/visuals/tube.py
 
     Parameters
     ----------
@@ -871,9 +782,7 @@ def generate_tube_meshes(path, closed=False, tube_points=10):
 
     return centers, offsets, triangles
 
-
 def path_to_mask(mask_shape, vertices):
-    # TODO: this should be removed
     """Converts a path to a boolean mask with `True` for points lying along
     each edge.
 
@@ -905,7 +814,6 @@ def path_to_mask(mask_shape, vertices):
 
 
 def poly_to_mask(mask_shape, vertices):
-    # TODO: this should be removed
     """Converts a polygon to a boolean mask with `True` for points
     lying inside the shape. Uses the bounding box of the vertices to reduce
     computation time.
@@ -933,9 +841,7 @@ def poly_to_mask(mask_shape, vertices):
         mask[bottom[0] : top[0], bottom[1] : top[1]] = bb_mask
     return mask
 
-
 def grid_points_in_poly(shape, vertices):
-    # TODO: this should be removed
     """Converts a polygon to a boolean mask with `True` for points
     lying inside the shape. Loops through all indices in the grid
 
@@ -960,7 +866,6 @@ def grid_points_in_poly(shape, vertices):
 
 
 def points_in_poly(points, vertices):
-    # TODO: this should be removed
     """Tests points for being inside a polygon using the ray casting algorithm
 
     Parameters
@@ -1005,58 +910,7 @@ def points_in_poly(points, vertices):
 
     return inside
 
-
-def extract_shape_type(data, shape_type=None):
-    # TODO: this should be removed
-    """Separates shape_type from data if present, and returns both.
-
-    Parameters
-    ----------
-    data : Array | Tuple(Array,str) | List[Array | Tuple(Array, str)] | Tuple(List[Array], str)
-        list or array of vertices belonging to each shape, optionally containing shape type strings
-    shape_type : str | None
-        metadata shape type string, or None if none was passed
-
-    Returns
-    -------
-    data : Array | List[Array]
-        list or array of vertices belonging to each shape
-    shape_type : List[str] | None
-        type of each shape in data, or None if none was passed
-    """
-    # Tuple for one shape or list of shapes with shape_type
-    if isinstance(data, Tuple):
-        shape_type = data[1]
-        data = data[0]
-    # List of (vertices, shape_type) tuples
-    elif len(data) != 0 and all(isinstance(datum, Tuple) for datum in data):
-        shape_type = [datum[1] for datum in data]
-        data = [datum[0] for datum in data]
-    return data, shape_type
-
-
-def get_default_shape_type(current_type):
-    # TODO: this should be removed
-    """Returns current shape type if current_type is one shape, else "polygon".
-
-    Parameters
-    ----------
-    current_type : list of str
-        list of current shape types
-
-    Returns
-    ----------
-    default_type : str
-        default shape type
-    """
-    first_type = current_type[0]
-    if all(shape_type == first_type for shape_type in current_type):
-        return first_type
-    return "rectangle"
-
-
-def get_shape_ndim(data):
-    # TODO: this should be removed
+def get_bounding_box_ndim(data):
     """Checks whether data is a list of the same type of shape, one shape, or
     a list of different shapes and returns the dimensionality of the shape/s.
 
@@ -1083,28 +937,131 @@ def get_shape_ndim(data):
     return ndim
 
 
-def number_of_shapes(data):
-    # TODO: this should be removed
-    """Determine number of shapes in the data.
+def get_bounding_box_ndim(data):
+    """Checks whether data is a list of bounding boxes or one shape.
+
+    Parameters
+    ----------
+    data : (N, ) list of array
+        List of bounding box data, where each element is an (N, D) array of the
+        N vertices of a bounding box in D dimensions.
+
+    Returns
+    -------
+    ndim : int
+        Dimensionality of the bounding box/es in data
+    """
+    # list of bounding boxes
+    if np.array(data).ndim == 3:
+        ndim = np.array(data).shape[2]
+    # just one shape
+    else:
+        ndim = np.array(data).shape[1]
+    # list of different shapes
+    return ndim
+
+
+def number_of_bounding_boxes(data):
+    """Determine number of bounding boxes in the data.
 
     Parameters
     ----------
     data : list or np.ndarray
-        Can either be no shapes, if empty, a
-        single shape or a list of shapes.
+        Can either be no bounding boxes, if empty, a
+        single bounding box or a list of bounding boxes.
 
     Returns
     -------
-    n_shapes : int
-        Number of new shapes
+    n_bounding_boxes : int
+        Number of new bounding box
     """
     if len(data) == 0:
         # If no new shapes
-        n_shapes = 0
-    elif np.array(data[0]).ndim == 1:
+        n_bounding_boxes = 0
+    elif np.array(data[0]).ndim == 2:
         # If a single array for a shape
-        n_shapes = 1
+        n_bounding_boxes = 1
     else:
-        n_shapes = len(data)
+        n_bounding_boxes = len(data)
 
-    return n_shapes
+    return n_bounding_boxes
+
+
+def validate_num_vertices(
+    data
+):
+    """Raises error if a bounding box in data has invalid number of vertices.
+
+    Checks whether all bounding boxes in data have a valid number of vertices.
+    Bounding boxes should have 2**D vertices.
+
+    One of valid_vertices or min_vertices must be passed to the
+    function.
+
+    Parameters
+    ----------
+    data : Array | Tuple(Array,str) | List[Array | Tuple(Array, str)] | Tuple(List[Array], str)
+        List of bounding box data, where each element is an (N, D) array of the
+        N vertices of a bounding box in D dimensions. Can be an 3-dimensional array
+        if each bounding box has the same number of vertices.
+    min_vertices : int or None
+        Minimum number of vertices for the shape type, by default None
+    valid_vertices : Tuple(int) or None
+        Valid number of vertices for the shape type in data, by default None
+
+    Raises
+    ------
+    ValueError
+        Raised if a shape is found with invalid number of vertices
+    """
+    n_bounding_boxes = number_of_bounding_boxes(data)
+    ndim = get_bounding_box_ndim(data)
+    valid_vertices = [2**ndim]
+    # single array of vertices
+    if n_bounding_boxes == 1 and np.array(data).ndim == 2:
+        # wrap in extra dimension so we can iterate through shape not vertices
+        data = [data]
+    for bounding_box in data:
+        if len(bounding_box) not in valid_vertices:
+            raise ValueError(
+                trans._(
+                    "{bounding_box} has invalid number of vertices: {shape_length}.",
+                    deferred=True,
+                    bounding_box=bounding_box,
+                    shape_length=len(bounding_box),
+                )
+            )
+
+
+def perpendicular_distance(
+    point: npt.NDArray, line_start: npt.NDArray, line_end: npt.NDArray
+) -> float:
+    """Calculate the perpendicular distance of a point to a given euclidean line.
+
+    Calculates the shortest distance of a point to a euclidean line defined by a line_start point and a line_end point.
+    Works up to any dimension.
+
+    Parameters
+    ---------
+    point : np.ndarray
+        A point defined by a numpy array of shape (viewer.ndims,)  which is part of a polygon shape.
+    line_start : np.ndarray
+        A point defined by a numpy array of shape (viewer.ndims,)  used to define the starting point of a line.
+    line_end : np.ndarray
+        A point defined by a numpy array of shape (viewer.ndims,)  used to define the end point of a line.
+
+    Returns
+    -------
+    float
+        A float number representing the distance of point to a euclidean line defined by line_start and line_end.
+    """
+
+    if np.array_equal(line_start, line_end):
+        return np.linalg.norm(point - line_start)
+
+    t = np.dot(point - line_end, line_start - line_end) / np.dot(
+        line_start - line_end, line_start - line_end
+    )
+    return np.linalg.norm(t * (line_start - line_end) + line_end - point)
+
+

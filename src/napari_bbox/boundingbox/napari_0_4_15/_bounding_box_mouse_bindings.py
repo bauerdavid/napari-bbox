@@ -12,11 +12,18 @@ def highlight(layer, event):
 
 
 def select(layer, event):
-    """Select bounding boxes or vertices either in select or direct select mode.
+    """Select bounding boxes or vertices either in select mode.
 
     Once selected bounding boxes can be moved or resized, and vertices can be moved
     depending on the mode. Holding shift when resizing a bounding box will preserve
     the aspect ratio.
+
+    Parameters
+    ----------
+    layer: BoundingBoxLayer
+        Bounding box layer
+    event: MouseEvent
+        A proxy read only wrapper around a vispy mouse event.
     """
     shift = 'Shift' in event.modifiers
     # on press
@@ -28,7 +35,12 @@ def select(layer, event):
             if bounding_box_under_cursor in layer.selected_data:
                 layer.selected_data.remove(bounding_box_under_cursor)
             else:
-                layer.selected_data.add(bounding_box_under_cursor)
+                if len(layer.selected_data):
+                    # one or more shapes already selected
+                    layer.selected_data.add(bounding_box_under_cursor)
+                else:
+                    # first shape being selected
+                    layer.selected_data = {bounding_box_under_cursor}
         elif bounding_box_under_cursor is not None:
             if bounding_box_under_cursor not in layer.selected_data:
                 layer.selected_data = {bounding_box_under_cursor}
@@ -303,13 +315,4 @@ def _move(layer, coordinates):
                 )
             # layer._rotate_box(angle, center=layer._fixed_vertex)
             layer.refresh()
-    elif layer._mode == Mode.DIRECT:
-        if vertex is not None:
-            layer._is_moving = True
-            index = layer._moving_value[0]
-            vertices = layer._data_view.bounding_boxes[index].data
-            vertices[vertex] = coordinates
-            layer._data_view.edit(index, vertices)
-            bounding_boxes = layer.selected_data
-            layer._selected_box = layer.interaction_box(bounding_boxes)
-            layer.refresh()
+

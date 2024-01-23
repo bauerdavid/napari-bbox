@@ -38,8 +38,8 @@ class LayerType(str, Enum):
 # npe2.manifest.contributions._writers.LayerType = LayerType
 
 # This is an ugly solution to register every component correctly
-from .boundingbox.qt_bounding_box_control import register_layer_control
-from .boundingbox.vispy_bounding_box_layer import register_layer_visual
+from .boundingbox import register_layer_control
+from .boundingbox import register_layer_visual
 register_layer_control(BoundingBoxLayer)
 register_layer_visual(BoundingBoxLayer)
 # register_bounding_boxes_actions(BoundingBoxLayer)

@@ -3,10 +3,9 @@ from typing import Iterable
 
 import napari
 from napari._qt.widgets.qt_color_swatch import QColorSwatchEdit
-from napari.utils.action_manager import action_manager
 from packaging import version
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QButtonGroup, QGridLayout, QLabel, QHBoxLayout, QCheckBox, QComboBox
+from qtpy.QtWidgets import QButtonGroup, QLabel, QHBoxLayout, QCheckBox, QComboBox
 from napari._qt.widgets._slider_compat import QDoubleSlider, QSlider
 from napari._qt.layer_controls.qt_layer_controls_base import QtLayerControls
 import numpy as np
@@ -31,16 +30,13 @@ class QtBoundingBoxControls(QtLayerControls):
     ----------
     button_group : qtpy.QtWidgets.QButtonGroup
         Button group for bounding boxes layer modes
-        (SELECT, DIRECT, PAN_ZOOM, ADD_RECTANGLE, ADD_ELLIPSE, ADD_LINE,
-        ADD_PATH, ADD_POLYGON, VERTEX_INSERT, VERTEX_REMOVE).
+        (SELECT, PAN_ZOOM, ADD_BOUNDING_BOX).
     delete_button : qtpy.QtWidgets.QtModePushButton
         Button to delete selected bounding boxes
     edgeColorSwatch : qtpy.QtWidgets.QFrame
         Thumbnail display of points edge color.
     edgeComboBox : qtpy.QtWidgets.QComboBox
         Drop down list allowing user to set edge color of points.
-    ellipse_button : qtpy.QtWidgets.QtModeRadioButton
-        Button to add ellipses to bounding boxes layer.
     faceColorSwatch : qtpy.QtWidgets.QFrame
         Thumbnail display of points face color.
     faceComboBox : qtpy.QtWidgets.QComboBox
@@ -48,11 +44,11 @@ class QtBoundingBoxControls(QtLayerControls):
     grid_layout : qtpy.QtWidgets.QGridLayout
         Layout of Qt widget controls for the layer.
     layer : napari.layers.BoundingBoxLayer
-        An instance of a napari BoundingBoxLayer layer.
+        An instance of a BoundingBoxLayer layer.
     panzoom_button : qtpy.QtWidgets.QtModeRadioButton
-        Button to pan/zoom bounding boxes layer.
+        Button to pan/zoom bounding box layer.
     bounding_box_button : qtpy.QtWidgets.QtModeRadioButton
-        Button to add rectangles to bounding boxes layer.
+        Button to add rectangles to bounding box layer.
     select_button : qtpy.QtWidgets.QtModeRadioButton
         Button to select bounding boxes.
     widthSlider : qtpy.QtWidgets.QSlider
@@ -61,7 +57,7 @@ class QtBoundingBoxControls(QtLayerControls):
     Raises
     ------
     ValueError
-        Raise error if bounding boxes mode is not recognized.
+        Raise error if bounding box mode is not recognized.
     """
 
     def __init__(self, layer):
@@ -171,7 +167,7 @@ class QtBoundingBoxControls(QtLayerControls):
 
         self.bounding_box_button = _radio_button(
             layer,
-            'rectangle',
+            'bounding_box',
             Mode.ADD_BOUNDING_BOX,
             "activate_add_bb_mode",
         )
@@ -401,7 +397,7 @@ class QtBoundingBoxControls(QtLayerControls):
         self.layer.size_constant = value
 
     def change_text_visibility(self, state):
-        """Toggle the visibiltiy of the text.
+        """Toggle the visibility of the text.
 
         Parameters
         ----------

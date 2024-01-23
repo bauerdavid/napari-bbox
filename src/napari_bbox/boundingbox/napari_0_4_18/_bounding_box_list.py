@@ -1,7 +1,15 @@
 # A copy of napari.layers.shapes._shape_list
+from collections.abc import Iterable
+from typing import Sequence, Union
+
 import numpy as np
+
 from napari.layers.shapes._shapes_utils import triangles_intersect_box
-from napari.utils.geometry import inside_triangles
+from napari.utils.geometry import (
+    inside_triangles,
+    intersect_line_with_triangles,
+    line_in_triangles_3d,
+)
 from napari.utils.translations import trans
 from .bounding_box import BoundingBox
 from ._mesh import Mesh
@@ -57,8 +65,7 @@ class BoundingBoxList:
         be rendered.
     """
 
-    def __init__(self, data=[], ndisplay=2):
-
+    def __init__(self, data=(), ndisplay=2) -> None:
         self._ndisplay = ndisplay
         self.bounding_boxes = []
         self._displayed = []
@@ -92,6 +99,7 @@ class BoundingBoxList:
     def ndisplay(self, ndisplay):
         if self.ndisplay == ndisplay:
             return
+
         self._ndisplay = ndisplay
         self._mesh.ndisplay = self.ndisplay
         self._vertices = np.empty((0, self.ndisplay))
@@ -149,10 +157,9 @@ class BoundingBoxList:
                 )
             )
 
-        update_method = getattr(self, f'update_{attribute}_color')
-
-        for i, col in enumerate(colors):
-            update_method(i, col, update=False)
+        update_method = getattr(self, f'update_{attribute}_colors')
+        indices = np.arange(len(colors))
+        update_method(indices, colors, update=False)
         self._update_displayed()
 
     @property
@@ -179,11 +186,16 @@ class BoundingBoxList:
 
     def _update_displayed(self):
         """Update the displayed data based on the slice key."""
+        # The list slice key is repeated to check against both the min and
+        # max values stored in the shapes slice key.
         slice_key = np.array(self.slice_key)
         if len(slice_key) != self.slice_keys.shape[-1]:
             return
+        # Slice key must exactly match mins and maxs of shape as then the
+        # shape is entirely contained within the current slice.
         if len(self.bounding_boxes) > 0:
-            self._displayed = np.all(np.logical_and(self.slice_keys[:, 0, :] <= slice_key, slice_key <= self.slice_keys[:, 1, :]), axis=1)
+            self._displayed = np.all(
+                np.logical_and(self.slice_keys[:, 0, :] <= slice_key, slice_key <= self.slice_keys[:, 1, :]), axis=1)
         else:
             self._displayed = []
         disp_indices = np.where(self._displayed)[0]
@@ -201,14 +213,13 @@ class BoundingBoxList:
         self._mesh.displayed_triangles_colors = self._mesh.triangles_colors[
             z_order
         ][disp_tri]
-
         disp_vert = np.isin(self._index, disp_indices)
         self.displayed_vertices = self._vertices[disp_vert]
         self.displayed_index = self._index[disp_vert]
 
     def add(
         self,
-        bounding_box,
+        bounding_box: Union[BoundingBox, Sequence[BoundingBox]],
         face_color=None,
         edge_color=None,
         bounding_box_index=None,
@@ -220,6 +231,65 @@ class BoundingBoxList:
         ----------
         bounding_box : BoundingBox
             The bounding box to add
+        face_color : color (or iterable of colors of same length as shape)
+        edge_color : color (or iterable of colors of same length as shape)
+        bounding_box_index : None | int
+            If int then edits the bounding box date at current index. To be used in
+            conjunction with `remove` when renumber is `False`. If None, then
+            appends a new bounding box to end of bounding boxes list
+        z_refresh : bool
+            If set to true, the mesh elements are reindexed with the new z order.
+            When bounding_box_index is provided, z_refresh will be overwritten to false,
+            as the z indices will not change.
+            When adding a batch of bounding boxes, set to false  and then call
+            BoundingBoxList._update_z_order() once at the end.
+        """
+        # single shape mode
+        if issubclass(type(bounding_box), BoundingBox):
+            self._add_single_bounding_box(
+                bounding_box=bounding_box,
+                face_color=face_color,
+                edge_color=edge_color,
+                bounding_box_index=bounding_box_index,
+                z_refresh=z_refresh,
+            )
+        # multiple shape mode
+        elif isinstance(bounding_box, Iterable):
+            if bounding_box_index is not None:
+                raise ValueError(
+                    trans._(
+                        'bounding_box_index must be None when adding multiple bounding boxes',
+                        deferred=True,
+                    )
+                )
+            self._add_multiple_bounding_boxes(
+                bounding_boxes=bounding_box,
+                face_colors=face_color,
+                edge_colors=edge_color,
+                z_refresh=z_refresh,
+            )
+        else:
+            raise TypeError(
+                trans._(
+                    'Cannot add single nor multiple bounding box',
+                    deferred=True,
+                )
+            )
+
+    def _add_single_bounding_box(
+        self,
+        bounding_box,
+        face_color=None,
+        edge_color=None,
+        bounding_box_index=None,
+        z_refresh=True,
+    ):
+        """Adds a single BoundingBox object
+
+        Parameters
+        ----------
+        bounding_box : subclass BoundingBox
+            Must be a BoundingBox
         bounding_box_index : None | int
             If int then edits the bounding box date at current index. To be used in
             conjunction with `remove` when renumber is `False`. If None, then
@@ -232,7 +302,7 @@ class BoundingBoxList:
             BoundingBoxList._update_z_order() once at the end.
         """
         if not issubclass(type(bounding_box), BoundingBox):
-            raise ValueError(
+            raise TypeError(
                 trans._(
                     'bounding_box must be subclass of BoundingBox',
                     deferred=True,
@@ -267,7 +337,7 @@ class BoundingBoxList:
         self._vertices = np.append(
             self._vertices, bounding_box.data_displayed, axis=0
         )
-        index = np.repeat(bounding_box_index, len(bounding_box.data_displayed))
+        index = np.repeat(bounding_box_index, len(bounding_box.data_displayed)) # TODO check
         self._index = np.append(self._index, index, axis=0)
 
         # Add faces to mesh
@@ -330,6 +400,167 @@ class BoundingBoxList:
         color_array = np.repeat([edge_color], len(triangles), axis=0)
         self._mesh.triangles_colors = np.append(
             self._mesh.triangles_colors, color_array, axis=0
+        )
+
+        if z_refresh:
+            # Set z_order
+            self._update_z_order()
+
+    def _add_multiple_bounding_boxes(
+        self,
+        bounding_boxes,
+        face_colors=None,
+        edge_colors=None,
+        z_refresh=True,
+    ):
+        """Add multiple bounding boxes at once (faster than adding them one by one)
+
+        Parameters
+        ----------
+        bounding_boxes : iterable of BoundingBox
+        face_colors : iterable of face_color
+        edge_colors : iterable of edge_color
+        z_refresh : bool
+            If set to true, the mesh elements are reindexed with the new z order.
+            When bounding_box_index is provided, z_refresh will be overwritten to false,
+            as the z indices will not change.
+            When adding a batch of bounding boxes, set to false  and then call
+            BoundingBoxList._update_z_order() once at the end.
+
+        TODO: Currently shares a lot of code with `add()`, with the
+        difference being that `add()` supports inserting bounding boxes at a specific
+        `bounding_box_index`, whereas `add_multiple` will append them as a full batch
+        """
+
+        def _make_index(length, bounding_box_index, cval=0):
+            """Same but faster than `np.repeat([[bounding_box_index, cval]], length, axis=0)`"""
+            index = np.empty((length, 2), np.int32)
+            index.fill(cval)
+            index[:, 0] = bounding_box_index
+            return index
+
+        all_z_index = []
+        all_vertices = []
+        all_index = []
+        all_mesh_vertices = []
+        all_mesh_vertices_centers = []
+        all_mesh_vertices_offsets = []
+        all_mesh_vertices_index = []
+        all_mesh_triangles = []
+        all_mesh_triangles_index = []
+        all_mesh_triangles_colors = []
+
+        m_mesh_vertices_count = len(self._mesh.vertices)
+
+        if face_colors is None:
+            face_colors = np.tile(np.array([1, 1, 1, 1]), (len(bounding_boxes), 1))
+        else:
+            face_colors = np.asarray(face_colors)
+
+        if edge_colors is None:
+            edge_colors = np.tile(np.array([0, 0, 0, 1]), (len(bounding_boxes), 1))
+        else:
+            edge_colors = np.asarray(edge_colors)
+
+        if not len(face_colors) == len(edge_colors) == len(bounding_boxes):
+            raise ValueError(
+                trans._(
+                    'bounding_boxes, face_colors, and edge_colors must be the same length',
+                    deferred=True,
+                )
+            )
+
+        if not all(issubclass(type(bounding_box), BoundingBox) for bounding_box in bounding_boxes):
+            raise ValueError(
+                trans._(
+                    'all bounding boxes must be subclass of BoundingBox',
+                    deferred=True,
+                )
+            )
+
+        for bounding_box, face_color, edge_color in zip(
+            bounding_boxes, face_colors, edge_colors
+        ):
+            bounding_box_index = len(self.bounding_boxes)
+            self.bounding_boxes.append(bounding_box)
+            all_z_index.append(bounding_box.z_index)
+            all_vertices.append(bounding_box.data_displayed)
+            all_index.append([bounding_box_index] * len(bounding_box.data_displayed))
+
+            # Add faces to mesh
+            m_tmp = m_mesh_vertices_count
+            all_mesh_vertices.append(bounding_box._face_vertices)
+            m_mesh_vertices_count += len(bounding_box._face_vertices)
+            all_mesh_vertices_centers.append(bounding_box._face_vertices)
+            vertices = np.zeros(bounding_box._face_vertices.shape)
+            all_mesh_vertices_offsets.append(vertices)
+            all_mesh_vertices_index.append(
+                _make_index(len(vertices), bounding_box_index, cval=0)
+            )
+
+            triangles = bounding_box._face_triangles + m_tmp
+            all_mesh_triangles.append(triangles)
+            all_mesh_triangles_index.append(
+                _make_index(len(triangles), bounding_box_index, cval=0)
+            )
+
+            color_array = np.repeat([face_color], len(triangles), axis=0)
+            all_mesh_triangles_colors.append(color_array)
+
+            # Add edges to mesh
+            m_tmp = m_mesh_vertices_count
+
+            vertices = (
+                bounding_box._edge_vertices + bounding_box.edge_width * bounding_box._edge_offsets
+            )
+            all_mesh_vertices.append(vertices)
+            m_mesh_vertices_count += len(vertices)
+
+            all_mesh_vertices_centers.append(bounding_box._edge_vertices)
+
+            all_mesh_vertices_offsets.append(bounding_box._edge_offsets)
+
+            all_mesh_vertices_index.append(
+                _make_index(len(bounding_box._edge_offsets), bounding_box_index, cval=1)
+            )
+
+            triangles = bounding_box._edge_triangles + m_tmp
+            all_mesh_triangles.append(triangles)
+            all_mesh_triangles_index.append(
+                _make_index(len(triangles), bounding_box_index, cval=1)
+            )
+
+            color_array = np.repeat([edge_color], len(triangles), axis=0)
+            all_mesh_triangles_colors.append(color_array)
+
+        # assemble properties
+        self._z_index = np.append(self._z_index, np.array(all_z_index), axis=0)
+        self._face_color = np.vstack((self._face_color, face_colors))
+        self._edge_color = np.vstack((self._edge_color, edge_colors))
+        self._vertices = np.vstack((self._vertices, np.vstack(all_vertices)))
+        self._index = np.append(self._index, np.concatenate(all_index), axis=0)
+
+        self._mesh.vertices = np.vstack(
+            (self._mesh.vertices, np.vstack(all_mesh_vertices))
+        )
+        self._mesh.vertices_centers = np.vstack(
+            (self._mesh.vertices_centers, np.vstack(all_mesh_vertices_centers))
+        )
+        self._mesh.vertices_offsets = np.vstack(
+            (self._mesh.vertices_offsets, np.vstack(all_mesh_vertices_offsets))
+        )
+        self._mesh.vertices_index = np.vstack(
+            (self._mesh.vertices_index, np.vstack(all_mesh_vertices_index))
+        )
+
+        self._mesh.triangles = np.vstack(
+            (self._mesh.triangles, np.vstack(all_mesh_triangles))
+        )
+        self._mesh.triangles_index = np.vstack(
+            (self._mesh.triangles_index, np.vstack(all_mesh_triangles_index))
+        )
+        self._mesh.triangles_colors = np.vstack(
+            (self._mesh.triangles_colors, np.vstack(all_mesh_triangles_colors))
         )
 
         if z_refresh:
@@ -506,6 +737,19 @@ class BoundingBoxList:
         if update:
             self._update_displayed()
 
+    def update_edge_colors(self, indices, edge_colors, update=True):
+        """same as update_edge_color() but for multiple indices/edgecolors at once"""
+        self._edge_color[indices] = edge_colors
+        all_indices = np.bitwise_and(
+            np.isin(self._mesh.triangles_index[:, 0], indices),
+            self._mesh.triangles_index[:, 1] == 1,
+        )
+        self._mesh.triangles_colors[all_indices] = self._edge_color[
+            self._mesh.triangles_index[all_indices, 0]
+        ]
+        if update:
+            self._update_displayed()
+
     def update_face_color(self, index, face_color, update=True):
         """Updates the face color of a single bounding box located at index.
 
@@ -524,6 +768,19 @@ class BoundingBoxList:
         self._face_color[index] = face_color
         indices = np.all(self._mesh.triangles_index == [index, 0], axis=1)
         self._mesh.triangles_colors[indices] = self._face_color[index]
+        if update:
+            self._update_displayed()
+
+    def update_face_colors(self, indices, face_colors, update=True):
+        """same as update_face_color() but for multiple indices/facecolors at once"""
+        self._face_color[indices] = face_colors
+        all_indices = np.bitwise_and(
+            np.isin(self._mesh.triangles_index[:, 0], indices),
+            self._mesh.triangles_index[:, 1] == 0,
+        )
+        self._mesh.triangles_colors[all_indices] = self._face_color[
+            self._mesh.triangles_index[all_indices, 0]
+        ]
         if update:
             self._update_displayed()
 
@@ -722,24 +979,103 @@ class BoundingBoxList:
         indices = inside_triangles(triangles - coord)
         bounding_boxes = self._mesh.displayed_triangles_index[indices, 0]
 
-        if len(bounding_boxes) > 0:
-            z_list = self._z_order.tolist()
-            order_indices = np.array([z_list.index(m) for m in bounding_boxes])
-            ordered_bounding_boxes = bounding_boxes[np.argsort(order_indices)]
-            return ordered_bounding_boxes[0]
-        else:
+        if len(bounding_boxes) == 0:
             return None
 
-    def to_masks(self, mask_shape=None, zoom_factor=1, offset=[0, 0]):
-        # TODO: check if works
-        """Returns N binary masks, one for each bounding box, embedded in an array of
+        z_list = self._z_order.tolist()
+        order_indices = np.array([z_list.index(m) for m in bounding_boxes])
+        ordered_bounding_boxes = bounding_boxes[np.argsort(order_indices)]
+        return ordered_bounding_boxes[0]
+
+    def _inside_3d(self, ray_position: np.ndarray, ray_direction: np.ndarray):
+        """Determines if any bounding box is intersected by a ray by looking inside triangle
+        meshes. Looks only at displayed bounding boxes.
+
+        Parameters
+        ----------
+        ray_position : np.ndarray
+            (3,) array containing the location that was clicked. This
+            should be in the same coordinate system as the vertices.
+        ray_direction : np.ndarray
+            (3,) array describing the direction camera is pointing in
+            the scene. This should be in the same coordinate system as
+            the vertices.
+
+        Returns
+        -------
+        bounding_box : int | None
+            Index of bounding_box if any that is at the coordinates. Returns `None`
+            if no bounding_box is found.
+        intersection_point : Optional[np.ndarray]
+            The point where the ray intersects the mesh face. If there was
+            no intersection, returns None.
+        """
+        triangles = self._mesh.vertices[self._mesh.displayed_triangles]
+        inside = line_in_triangles_3d(
+            line_point=ray_position,
+            line_direction=ray_direction,
+            triangles=triangles,
+        )
+        intersected_bounding_boxes = self._mesh.displayed_triangles_index[inside, 0]
+        if len(intersected_bounding_boxes) == 0:
+            return None, None
+
+        intersection_points = self._triangle_intersection(
+            triangle_indices=inside,
+            ray_position=ray_position,
+            ray_direction=ray_direction,
+        )
+        start_to_intersection = intersection_points - ray_position
+        distances = np.linalg.norm(start_to_intersection, axis=1)
+        closest_bounding_box_index = np.argmin(distances)
+        bounding_box = intersected_bounding_boxes[closest_bounding_box_index]
+        intersection = intersection_points[closest_bounding_box_index]
+        return bounding_box, intersection
+
+    def _triangle_intersection(
+        self,
+        triangle_indices: np.ndarray,
+        ray_position: np.ndarray,
+        ray_direction: np.ndarray,
+    ):
+        """Find the intersection of a ray with specified triangles.
+
+        Parameters
+        ----------
+        triangle_indices : np.ndarray
+            (n,) array of bounding box indices to find the intersection with the ray. The indices should
+            correspond with self._mesh.displayed_triangles.
+        ray_position : np.ndarray
+            (3,) array with the coordinate of the starting point of the ray in layer coordinates.
+            Only provide the 3 displayed dimensions.
+        ray_direction : np.ndarray
+            (3,) array of the normal direction of the ray in layer coordinates.
+            Only provide the 3 displayed dimensions.
+
+        Returns
+        -------
+        intersection_points : np.ndarray
+            (n x 3) array of the intersection of the ray with each of the specified bounding boxes in layer coordinates.
+            Only the 3 displayed dimensions are provided.
+        """
+        triangles = self._mesh.vertices[self._mesh.displayed_triangles]
+        intersected_triangles = triangles[triangle_indices]
+        intersection_points = intersect_line_with_triangles(
+            line_point=ray_position,
+            line_direction=ray_direction,
+            triangles=intersected_triangles,
+        )
+        return intersection_points
+
+    def to_masks(self, mask_shape=None, zoom_factor=1, offset=(0, 0)):
+        """Returns N binary masks, one for each bounding_box, embedded in an array of
         shape `mask_shape`.
 
         Parameters
         ----------
         mask_shape : np.ndarray | tuple | None
             2-tuple defining shape of mask to be generated. If non specified,
-            takes the max of all the vertiecs
+            takes the max of all the vertices
         zoom_factor : float
             Premultiplier applied to coordinates before generating mask. Used
             for generating as downsampled mask.
@@ -751,7 +1087,7 @@ class BoundingBoxList:
         -------
         masks : (N, M, P) np.ndarray
             Array where there is one binary mask of shape MxP for each of
-            N bounding boxes
+            N shapes
         """
         if mask_shape is None:
             mask_shape = self.displayed_vertices.max(axis=0).astype('int')
@@ -759,24 +1095,23 @@ class BoundingBoxList:
         masks = np.array(
             [
                 s.to_mask(mask_shape, zoom_factor=zoom_factor, offset=offset)
-                for s in self.bounding_boxes
+                for s in self.shapes
             ]
         )
 
         return masks
 
-    def to_labels(self, labels_shape=None, zoom_factor=1, offset=[0, 0]):
-        # TODO: check if works
-        """Returns a integer labels image, where each bounding box is embedded in an
+    def to_labels(self, labels_shape=None, zoom_factor=1, offset=(0, 0)):
+        """Returns a integer labels image, where each shape is embedded in an
         array of shape labels_shape with the value of the index + 1
-        corresponding to it, and 0 for background. For overlapping bounding boxes
+        corresponding to it, and 0 for background. For overlapping shapes
         z-ordering will be respected.
 
         Parameters
         ----------
         labels_shape : np.ndarray | tuple | None
             2-tuple defining shape of labels image to be generated. If non
-            specified, takes the max of all the vertiecs
+            specified, takes the max of all the vertices
         zoom_factor : float
             Premultiplier applied to coordinates before generating mask. Used
             for generating as downsampled mask.
@@ -788,7 +1123,7 @@ class BoundingBoxList:
         -------
         labels : np.ndarray
             MxP integer array where each value is either 0 for background or an
-            integer up to N for points inside the corresponding bounding box.
+            integer up to N for points inside the corresponding shape.
         """
         if labels_shape is None:
             labels_shape = self.displayed_vertices.max(axis=0).astype(int)
@@ -796,7 +1131,7 @@ class BoundingBoxList:
         labels = np.zeros(labels_shape, dtype=int)
 
         for ind in self._z_order[::-1]:
-            mask = self.bounding_boxes[ind].to_mask(
+            mask = self.shapes[ind].to_mask(
                 labels_shape, zoom_factor=zoom_factor, offset=offset
             )
             labels[mask] = ind + 1
@@ -839,7 +1174,7 @@ class BoundingBoxList:
         if colors_shape is None:
             colors_shape = self.displayed_vertices.max(axis=0).astype(int)
 
-        colors = np.zeros(tuple(colors_shape) + (4,), dtype=float)
+        colors = np.zeros((*colors_shape, 4), dtype=float)
         colors[..., 3] = 1
 
         z_order = self._z_order[::-1]

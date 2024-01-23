@@ -6,12 +6,13 @@ see: https://napari.org/plugins/guides.html?#widgets
 
 Replace code below according to your needs.
 """
-from .boundingbox.bounding_boxes import BoundingBoxLayer
+from .boundingbox import BoundingBoxLayer
 from qtpy.QtWidgets import QPushButton, QHBoxLayout, QVBoxLayout, QSpinBox, QLabel, QFrame, QFileDialog, QWidget
 from ._writer import write_single_bbox
 from ._reader import read_bbox
 from napari import Viewer
 from napari.utils.notifications import show_info
+
 
 class BoundingBoxCreator(QWidget):
     def __init__(self, viewer: Viewer):

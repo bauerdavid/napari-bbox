@@ -1,9 +1,7 @@
 # A copy of napari.layers.shapes._shapes_models.shape
 from abc import ABC, abstractmethod
-from copy import copy
 
 import numpy as np
-from napari.utils.translations import trans
 
 from ._bounding_box_utils import (
     is_collinear,
@@ -12,8 +10,10 @@ from ._bounding_box_utils import (
     triangulate_edge,
     triangulate_face, find_bbox_corners, rectangle_to_box, find_corners,
 )
+from napari.utils.misc import argsort
+from napari.utils.translations import trans
 
-LOG_DEBUG = True
+
 class BoundingBox(ABC):
     """Class for a single bounding box
     Parameters
@@ -21,7 +21,7 @@ class BoundingBox(ABC):
     data : (N, D) array
         Vertices specifying the bounding box.
     edge_width : float
-        thickness of  edges.
+        thickness of lines and edges.
     z_index : int
         Specifier of z order priority. Bounding boxes with higher z order are displayed
         ontop of others.
@@ -45,6 +45,10 @@ class BoundingBox(ABC):
         Order that the dimensions are rendered in.
     ndisplay : int
         Number of dimensions to be displayed.
+    displayed : tuple
+        List of dimensions that are displayed.
+    not_displayed : tuple
+        List of dimensions that are not displayed.
     slice_key : (2, M) array
         Min and max values of the M non-displayed dimensions, useful for
         slicing multidimensional bounding boxes.
@@ -85,8 +89,7 @@ class BoundingBox(ABC):
         z_index=0,
         dims_order=None,
         ndisplay=2,
-    ):
-
+    ) -> None:
         self._dims_order = dims_order or list(range(2))
         self._ndisplay = ndisplay
         self.slice_key = None
@@ -103,7 +106,7 @@ class BoundingBox(ABC):
         self._use_face_vertices = False
         self.edge_width = edge_width
         self.z_index = z_index
-        self.name = 'bounding box'
+        self.name = ''
 
     @property
     def data(self):
@@ -238,7 +241,6 @@ class BoundingBox(ABC):
         for val, idx_list in zip(new_value, uniqe_idx):
             self._data[idx_list[:, np.newaxis], self.dims_displayed] = val
 
-
     @property
     def edge_width(self):
         """float: thickness of lines and edges."""
@@ -284,13 +286,10 @@ class BoundingBox(ABC):
             self._edge_triangles = np.empty((0, 3), dtype=np.uint32)
 
         if face:
-            clean_data = np.array(
-                [
-                    p
-                    for i, p in enumerate(data)
-                    if i == 0 or not np.all(p == data[i - 1])
-                ]
+            idx = np.concatenate(
+                [[True], ~np.all(data[1:] == data[:-1], axis=-1)]
             )
+            clean_data = data[idx].copy()
 
             if not is_collinear(clean_data[:, -2:]):
                 if clean_data.shape[1] == 2:
@@ -324,7 +323,6 @@ class BoundingBox(ABC):
         transform : np.ndarray
             2x2 array specifying linear transform.
         """
-
         self._box = self._box @ transform.T
         self._data[:, self.dims_displayed] = (
             self._data[:, self.dims_displayed] @ transform.T
@@ -349,10 +347,32 @@ class BoundingBox(ABC):
             length 2 array specifying shift of bounding boxes.
         """
         shift = np.array(shift)
+
         self._face_vertices = self._face_vertices + shift
         self._edge_vertices = self._edge_vertices + shift
         self._box = self._box + shift
         self.data_displayed = self.data_displayed + shift
+
+    def scale(self, scale, center=None):
+        """Performs a scaling on the shape
+
+        Parameters
+        ----------
+        scale : float, list
+            scalar or list specifying rescaling of shape.
+        center : list
+            length 2 list specifying coordinate of center of scaling.
+        """
+        if isinstance(scale, (list, np.ndarray)):
+            transform = np.array([[scale[0], 0], [0, scale[1]]])
+        else:
+            transform = np.array([[scale, 0], [0, scale]])
+        if center is None:
+            self.transform(transform)
+        else:
+            self.shift(-center)
+            self.transform(transform)
+            self.shift(center)
 
     def to_mask(self, mask_shape=None, zoom_factor=1, offset=[0, 0]):
         # TODO: might not be needed, if so, remove

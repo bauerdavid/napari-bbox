@@ -14,21 +14,17 @@ class Mode(StringEnum):
 
     The ADD_BOUNDING_BOX mode allows for bounding boxes to be added.
 
-    The DIRECT mode is unused, and will be removed
     """
 
     PAN_ZOOM = auto()
+    TRANSFORM = auto()
     SELECT = auto()
-    DIRECT = auto()
     ADD_BOUNDING_BOX = auto()
-
 
 
 class ColorMode(StringEnum):
     """
     ColorMode: Color setting mode.
-
-    DIRECT (default mode) allows each shape to be set arbitrarily
 
     CYCLE allows the color to be set via a color cycle over an attribute
 

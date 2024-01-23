@@ -5,8 +5,7 @@ __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 packages = os.listdir(__location__)
-
-napari_versions = [version.parse(package.replace("napari_", "").replace("_", ".")) for package in packages]
+napari_versions = [version.parse(package.replace("napari_", "").replace("_", ".")) for package in packages if package.startswith("napari_")]
 for napari_version in reversed(sorted(napari_versions)):
     package = "napari_%s" % str(napari_version).replace(".", "_")
     if not os.path.exists(os.path.join(__location__, package)):

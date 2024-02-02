@@ -978,7 +978,7 @@ def number_of_bounding_boxes(data):
     if len(data) == 0:
         # If no new shapes
         n_bounding_boxes = 0
-    elif np.array(data[0]).ndim == 2:
+    elif np.array(data).ndim == 2:
         # If a single array for a shape
         n_bounding_boxes = 1
     else:

@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
+from packaging import version
 from vispy.color import get_color_names
 
 from napari.layers.base import Layer, no_op
@@ -35,6 +36,7 @@ from ._bounding_box_utils import (
     number_of_bounding_boxes,
     validate_num_vertices,
 )
+from ..._utils import NAPARI_VERSION
 from napari.layers.utils.color_manager_utils import (
     guess_continuous,
     map_property,
@@ -61,6 +63,7 @@ from napari.utils.events import Event
 from napari.utils.events.custom_types import Array
 from napari.utils.misc import ensure_iterable
 from napari.utils.translations import trans
+
 
 DEFAULT_COLOR_CYCLE = np.array([[1, 0, 1, 1], [0, 1, 0, 1]])
 
@@ -452,6 +455,7 @@ class BoundingBoxLayer(Layer):
         self._selected_data_history = set()
         self._selected_box = None
         self._last_cursor_position = None
+        self._last_dim_point = None
 
         self._drag_start = None
         self._fixed_vertex = None
@@ -1658,6 +1662,7 @@ class BoundingBoxLayer(Layer):
         edge_color=None,
         face_color=None,
         z_index=None,
+        gui=False
     ):
         """Add bounding boxes to the current layer.
 
@@ -1691,7 +1696,6 @@ class BoundingBoxLayer(Layer):
             bounding boxes.
         """
         data = np.asarray(data)
-        print(self.ndim)
         if edge_width is None:
             edge_width = self.current_edge_width
 
@@ -1714,6 +1718,13 @@ class BoundingBoxLayer(Layer):
             total_bounding_boxes = n_new_bounding_boxes + self.nbounding_boxes
             self._feature_table.resize(total_bounding_boxes)
             self.text.apply(self.features)
+            if NAPARI_VERSION >= version.parse("0.4.19"):
+                self.events.data(
+                    value=self.data,
+                    action=ActionType.ADDING,
+                    data_indices=(-1,),
+                    vertex_indices=((),),
+                )
             self._add_bounding_boxes(
                 data,
                 edge_width=edge_width,
@@ -1721,12 +1732,21 @@ class BoundingBoxLayer(Layer):
                 face_color=face_color,
                 z_index=z_index,
             )
-            self.events.data(
-                value=self.data,
-                action=ActionType.ADD.value,
-                data_indices=(-1,),
-                vertex_indices=((),),
-            )
+            if NAPARI_VERSION >= version.parse("0.4.19"):
+                if not gui:
+                    self.events.data(
+                        value=self.data,
+                        action=ActionType.ADDED,
+                        data_indices=(-1,),
+                        vertex_indices=((),),
+                    )
+            else:
+                self.events.data(
+                    value=self.data,
+                    action=ActionType.ADD.value,
+                    data_indices=(-1,),
+                    vertex_indices=((),),
+                )
 
     def _init_bounding_boxes(
         self,
@@ -2231,6 +2251,15 @@ class BoundingBoxLayer(Layer):
             self._data_view.remove(ind)
 
         if len(index) > 0:
+            if NAPARI_VERSION >= version.parse("0.4.19"):
+                self.events.data(
+                    value=self.data,
+                    action=ActionType.REMOVING,
+                    data_indices=tuple(
+                        index,
+                    ),
+                    vertex_indices=((),),
+                )
             self._feature_table.remove(index)
             self.text.remove(index)
             self._data_view._edge_color = np.delete(
@@ -2241,14 +2270,24 @@ class BoundingBoxLayer(Layer):
             )
         self.selected_data = set()
         self._finish_drawing()
-        self.events.data(
-            value=self.data,
-            action=ActionType.REMOVE.value,
-            data_indices=tuple(
-                index,
-            ),
-            vertex_indices=((),),
-        )
+        if NAPARI_VERSION >= version.parse("0.4.19"):
+            self.events.data(
+                value=self.data,
+                action=ActionType.REMOVED,
+                data_indices=tuple(
+                    index,
+                ),
+                vertex_indices=((),),
+            )
+        else:
+            self.events.data(
+                value=self.data,
+                action=ActionType.REMOVE.value,
+                data_indices=tuple(
+                    index,
+                ),
+                vertex_indices=((),),
+            )
 
     def _scale_box(self, scale, center=(0, 0)):
         """Perform a scaling on the selected box.
@@ -2670,3 +2709,6 @@ class BoundingBoxLayer(Layer):
         labels = self._data_view.to_labels(labels_shape=labels_shape)
 
         return labels
+
+    def _store_last_dim_point(self, last_dim_point):
+        self._last_dim_point = last_dim_point

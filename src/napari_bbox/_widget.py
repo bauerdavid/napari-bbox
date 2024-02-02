@@ -32,7 +32,7 @@ class BoundingBoxCreator(QWidget):
         layout.addLayout(ndims_layout)
 
         create_button = QPushButton("Create")
-        create_button.clicked.connect(lambda: viewer.add_layer(BoundingBoxLayer(ndim=ndims_spinbox.value())))
+        create_button.clicked.connect(lambda: viewer.add_bounding_boxes(ndim=ndims_spinbox.value()))
         layout.addWidget(create_button)
         separator = QFrame()
         separator.setFrameShape(QFrame.HLine)

@@ -3,7 +3,7 @@ import warnings
 from contextlib import contextmanager
 from copy import deepcopy, copy
 from itertools import cycle
-from typing import Dict, Optional, Union, Tuple
+from typing import Dict, Any, Optional, Union, Tuple
 from packaging import version
 import napari.layers
 import pandas as pd
@@ -105,6 +105,8 @@ class BoundingBoxLayer(Layer):
             edge_color=Event,
             face_color=Event,
             properties=Event,
+            features=Event,
+            feature_defaults=Event,
             current_edge_color=Event,
             current_face_color=Event,
             current_properties=Event,
@@ -402,6 +404,14 @@ class BoundingBoxLayer(Layer):
         See `features` for more details on the type of this property.
         """
         return self._feature_table.defaults
+
+    @feature_defaults.setter
+    def feature_defaults(
+            self, defaults: Union[Dict[str, Any], pd.DataFrame]
+    ) -> None:
+        self._feature_table.set_defaults(defaults)
+        self.events.current_properties()
+        self.events.feature_defaults()
 
     @property
     def properties(self) -> Dict[str, np.ndarray]:

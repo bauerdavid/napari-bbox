@@ -122,11 +122,6 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
         if update_node:
             self.node.update()
 
-    def _get_text_node(self):
-        """Function to get the text node from the Compound visual"""
-        text_node = self.node._subvisuals[-1]
-        return text_node
-
     def _on_text_change(self, event=None):
         if event is not None:
             if event.type == 'blending':
@@ -135,6 +130,11 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
             if event.type == 'values':
                 return
         self._update_text()
+
+    def _get_text_node(self):
+        """Function to get the text node from the Compound visual"""
+        text_node = self.node._subvisuals[-1]
+        return text_node
 
     def _on_blending_change(self):
         """Function to set the blending mode"""

@@ -26,7 +26,8 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
         self.layer.events.face_color.connect(self._on_data_change)
         self.layer.text.events.connect(self._on_text_change)
         self.layer.events.highlight.connect(self._on_highlight_change)
-
+        self.node._subvisuals[3].symbol = 'square'
+        self.node._subvisuals[3].scaling = False
         self.reset()
         self._on_data_change()
         self._on_highlight_change()

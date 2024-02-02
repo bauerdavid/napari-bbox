@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 import numpy as np
+from napari._qt.qt_resources import get_current_stylesheet
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QButtonGroup, QCheckBox, QHBoxLayout, QLabel, QComboBox
 from superqt import QDoubleSlider
@@ -18,6 +19,7 @@ from napari._qt.widgets.qt_mode_buttons import (
     QtModePushButton,
     QtModeRadioButton,
 )
+from ...resources import cube_style_path
 from ._bounding_box_constants import Mode
 from napari.utils.action_manager import action_manager
 from napari.utils.events import disconnect_events
@@ -179,10 +181,11 @@ class QtBoundingBoxControls(QtLayerControls):
 
         self.bounding_box_button = _radio_button(
             layer,
-            'bounding_box',
+            'bounding box',
             Mode.ADD_BOUNDING_BOX,
             "activate_add_bb_mode",
         )
+        self.bounding_box_button.setStyleSheet(get_current_stylesheet([cube_style_path]))
 
         self.delete_button = QtModePushButton(
             layer,

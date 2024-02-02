@@ -15,6 +15,7 @@ from napari.utils.events import disconnect_events
 from napari.utils.interactions import Shortcut
 from napari.utils.translations import trans
 
+from ..._utils import NAPARI_VERSION
 from ._bounding_box_constants import Mode
 
 class QtBoundingBoxControls(QtLayerControls):
@@ -165,13 +166,25 @@ class QtBoundingBoxControls(QtLayerControls):
             checked=True,
         )
 
-        self.bounding_box_button = _radio_button(
-            layer,
-            'bounding_box',
-            Mode.ADD_BOUNDING_BOX,
-            "activate_add_bb_mode",
-        )
 
+        if NAPARI_VERSION <= version.parse("0.4.16"):
+            self.bounding_box_button = _radio_button(
+                layer,
+                'rectangle',
+                Mode.ADD_BOUNDING_BOX,
+                "activate_add_bb_mode",
+            )
+            self.bounding_box_button.setToolTip("bounding box")
+        else:
+            self.bounding_box_button = _radio_button(
+                layer,
+                'bounding box',
+                Mode.ADD_BOUNDING_BOX,
+                "activate_add_bb_mode",
+            )
+            from napari._qt.qt_resources import get_current_stylesheet
+            from ...resources import cube_style_path
+            self.bounding_box_button.setStyleSheet(get_current_stylesheet([cube_style_path]))
         self.delete_button = QtModePushButton(
             layer,
             'delete_shape',

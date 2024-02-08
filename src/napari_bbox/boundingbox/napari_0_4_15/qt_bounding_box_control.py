@@ -14,6 +14,7 @@ from napari._qt.widgets.qt_mode_buttons import QtModeRadioButton, QtModePushButt
 from napari.utils.events import disconnect_events
 from napari.utils.interactions import Shortcut
 from napari.utils.translations import trans
+from superqt.sliders import QLabeledDoubleSlider
 
 from ..._utils import NAPARI_VERSION
 from ._bounding_box_constants import Mode
@@ -214,7 +215,7 @@ class QtBoundingBoxControls(QtLayerControls):
         bb_size_mode_combobox.activated[str].connect(self.changeSizeMode)
         self.bb_size_mode_combobox = bb_size_mode_combobox
 
-        bb_size_mult_slider = QDoubleSlider(Qt.Horizontal, parent=self)
+        bb_size_mult_slider = QLabeledDoubleSlider(Qt.Horizontal, parent=self)
         bb_size_mult_slider.setFocusPolicy(Qt.NoFocus)
         bb_size_mult_slider.setMinimum(0.1)
         bb_size_mult_slider.setMaximum(10)
@@ -224,7 +225,7 @@ class QtBoundingBoxControls(QtLayerControls):
         self.bb_size_mult_label = QLabel(trans._('size multiplier:'), parent=self)
         self._on_size_multiplier_change()
 
-        bb_size_const_slider = QDoubleSlider(Qt.Horizontal, parent=self)
+        bb_size_const_slider = QLabeledDoubleSlider(Qt.Horizontal, parent=self)
         bb_size_const_slider.setFocusPolicy(Qt.NoFocus)
         bb_size_const_slider.setMinimum(1)
         bb_size_const_slider.setMaximum(100)

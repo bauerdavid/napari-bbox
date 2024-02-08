@@ -32,7 +32,6 @@ from ._bounding_box_mouse_bindings import (
 )
 from ._bounding_box_utils import (
     create_box,
-    get_bounding_box_ndim,
     number_of_bounding_boxes,
     validate_num_vertices,
 )
@@ -580,7 +579,7 @@ class BoundingBoxLayer(Layer):
         self._finish_drawing()
         
         data = np.asarray(data)
-        n_new_bounding_boxes = len(data)
+        n_new_bounding_boxes = number_of_bounding_boxes(data)
 
         edge_widths = self._data_view.edge_widths
         edge_color = self._data_view.edge_color
@@ -1795,7 +1794,7 @@ class BoundingBoxLayer(Layer):
             bounding boxes.
         """
 
-        n_bounding_boxes = len(data)
+        n_bounding_boxes = number_of_bounding_boxes(data)
         with self.block_update_properties():
             self._edge_color_property = ''
             self.edge_color_cycle_map = {}

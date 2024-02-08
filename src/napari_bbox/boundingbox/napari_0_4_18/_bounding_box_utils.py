@@ -908,32 +908,6 @@ def points_in_poly(points, vertices):
 
     return inside
 
-def get_bounding_box_ndim(data):
-    """Checks whether data is a list of the same type of shape, one shape, or
-    a list of different shapes and returns the dimensionality of the shape/s.
-
-    Parameters
-    ----------
-    data : (N, ) list of array
-        List of shape data, where each element is an (N, D) array of the
-        N vertices of a shape in D dimensions.
-
-    Returns
-    -------
-    ndim : int
-        Dimensionality of the shape/s in data
-    """
-    # list of all the same shapes
-    if np.array(data, dtype=object).ndim == 3:
-        ndim = np.array(data).shape[2]
-    # just one shape
-    elif np.array(data[0]).ndim == 1:
-        ndim = np.array(data).shape[1]
-    # list of different shapes
-    else:
-        ndim = np.array(data[0]).shape[1]
-    return ndim
-
 
 def get_bounding_box_ndim(data):
     """Checks whether data is a list of bounding boxes or one shape.

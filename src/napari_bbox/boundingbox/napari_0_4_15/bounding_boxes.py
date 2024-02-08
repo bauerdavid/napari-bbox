@@ -29,9 +29,10 @@ from ._bounding_box_mouse_bindings import select, highlight, add_bounding_box
 # from ._bounding_boxes_key_bindings import *
 from .qt_bounding_box_control import *
 from .vispy_bounding_box_layer import *
-from ._bounding_box_utils import create_box
+from ._bounding_box_utils import create_box, number_of_bounding_boxes
 
 DEFAULT_COLOR_CYCLE = np.array([[1, 0, 1, 1], [0, 1, 0, 1]])
+
 
 class BoundingBoxLayer(Layer):
     _colors = get_color_names()
@@ -296,7 +297,7 @@ class BoundingBoxLayer(Layer):
     def data(self, data):
         self._finish_drawing()
 
-        n_new_bounding_boxes = len(data)
+        n_new_bounding_boxes = number_of_bounding_boxes(data)
 
         edge_widths = self._data_view.edge_widths
         edge_color = self._data_view.edge_color

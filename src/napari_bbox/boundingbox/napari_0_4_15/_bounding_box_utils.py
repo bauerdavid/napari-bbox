@@ -1078,28 +1078,27 @@ def get_shape_ndim(data):
     return ndim
 
 
-def number_of_shapes(data):
-    # TODO: this should be removed
-    """Determine number of shapes in the data.
+def number_of_bounding_boxes(data):
+    """Determine number of bounding boxes in the data.
 
     Parameters
     ----------
     data : list or np.ndarray
-        Can either be no shapes, if empty, a
-        single shape or a list of shapes.
+        Can either be no bounding boxes, if empty, a
+        single bounding box or a list of bounding boxes.
 
     Returns
     -------
-    n_shapes : int
-        Number of new shapes
+    n_bounding_boxes : int
+        Number of new bounding box
     """
     if len(data) == 0:
         # If no new shapes
-        n_shapes = 0
-    elif np.array(data[0]).ndim == 1:
+        n_bounding_boxes = 0
+    elif np.array(data).ndim == 2:
         # If a single array for a shape
-        n_shapes = 1
+        n_bounding_boxes = 1
     else:
-        n_shapes = len(data)
+        n_bounding_boxes = len(data)
 
-    return n_shapes
+    return n_bounding_boxes

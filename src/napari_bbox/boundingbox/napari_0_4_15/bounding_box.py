@@ -116,7 +116,7 @@ class BoundingBox(ABC):
         if len(self.dims_order) != data.shape[1]:
             self._dims_order = list(range(data.shape[1]))
 
-        if len(data) == 2 and data.shape[1] == 2:
+        if len(data) == 2:
             data = find_bbox_corners(data)
 
         if len(data) != 2**len(self.dims_order):

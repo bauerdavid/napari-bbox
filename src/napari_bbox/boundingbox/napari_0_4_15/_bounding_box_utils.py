@@ -457,9 +457,7 @@ def find_bbox_corners(data):
     max_val = data.max(axis=0, keepdims=True)
     border_vals = np.concatenate([min_val, max_val])
     dims = border_vals.shape[-1]
-    lst = np.asarray(list(map(lambda x: list(zip(x, tuple(range(dims)))),list(map(tuple, itertools.product([0, 1], repeat=dims))))))
-    lst = np.transpose(lst)
-    corners = border_vals[lst]
+    corners = np.where(list(map(tuple, itertools.product([False, True], repeat=dims))), max_val, min_val)
     return corners
 
 def center_radii_to_corners(center, radii):

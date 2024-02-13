@@ -952,7 +952,8 @@ class BoundingBoxList:
         bounding_boxes : list
             List of bounding boxes that are inside the box.
         """
-
+        if len(self._mesh.vertices) == 0:
+            return []
         triangles = self._mesh.vertices[self._mesh.displayed_triangles]
         intersects = triangles_intersect_box(triangles, corners)
         bounding_boxes = self._mesh.displayed_triangles_index[intersects, 0]
@@ -975,6 +976,8 @@ class BoundingBoxList:
             Index of bounding box if any that is at the coordinates. Returns `None`
             if no bounding box is found.
         """
+        if len(self._mesh.vertices) == 0:
+            return None
         triangles = self._mesh.vertices[self._mesh.displayed_triangles]
         indices = inside_triangles(triangles - coord)
         bounding_boxes = self._mesh.displayed_triangles_index[indices, 0]
@@ -1010,6 +1013,8 @@ class BoundingBoxList:
             The point where the ray intersects the mesh face. If there was
             no intersection, returns None.
         """
+        if len(self._mesh.vertices) == 0:
+            return None, None
         triangles = self._mesh.vertices[self._mesh.displayed_triangles]
         inside = line_in_triangles_3d(
             line_point=ray_position,
@@ -1058,6 +1063,8 @@ class BoundingBoxList:
             (n x 3) array of the intersection of the ray with each of the specified bounding boxes in layer coordinates.
             Only the 3 displayed dimensions are provided.
         """
+        if len(self._mesh.vertices) == 0:
+            return np.empty((0, 3))
         triangles = self._mesh.vertices[self._mesh.displayed_triangles]
         intersected_triangles = triangles[triangle_indices]
         intersection_points = intersect_line_with_triangles(

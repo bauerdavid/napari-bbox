@@ -1,10 +1,10 @@
 __version__ = "0.0.7"
 from packaging import version
 from napari import layers
-layers.NAMES.add("bounding_boxes")
+layers.NAMES.add("boundingboxlayer")
 
 from napari import types
-types.Bounding_BoxesData = types.NewType("Bounding_BoxesData", types.ArrayBase)
+types.BoundingboxlayerData = types.NewType("BoundingboxlayerData", types.ArrayBase)
 
 
 from .boundingbox import BoundingBoxLayer
@@ -77,7 +77,7 @@ register_layer_control(BoundingBoxLayer)
 register_layer_visual(BoundingBoxLayer)
 # register_bounding_boxes_actions(BoundingBoxLayer)
 import sys
-layers.__dict__["BoundingBoxLayer"] = BoundingBoxLayer
+layers.__dict__["Boundingboxlayer"] = BoundingBoxLayer
 layers.__dict__["bounding_boxes"] = sys.modules[__name__]
 
 __all__ = ["BoundingBoxCreator", "BoundingBoxLayer", "napari_get_reader", "write_single_bbox"]

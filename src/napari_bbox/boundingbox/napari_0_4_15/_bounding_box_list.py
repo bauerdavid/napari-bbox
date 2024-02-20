@@ -694,7 +694,8 @@ class BoundingBoxList:
         bounding_boxes : list
             List of bounding boxes that are inside the box.
         """
-
+        if len(self._mesh.vertices) == 0:
+            return []
         triangles = self._mesh.vertices[self._mesh.displayed_triangles]
         intersects = triangles_intersect_box(triangles, corners)
         bounding_boxes = self._mesh.displayed_triangles_index[intersects, 0]
@@ -717,6 +718,8 @@ class BoundingBoxList:
             Index of bounding box if any that is at the coordinates. Returns `None`
             if no bounding box is found.
         """
+        if len(self._mesh.vertices) == 0:
+            return None
         triangles = self._mesh.vertices[self._mesh.displayed_triangles]
         indices = inside_triangles(triangles - coord)
         bounding_boxes = self._mesh.displayed_triangles_index[indices, 0]

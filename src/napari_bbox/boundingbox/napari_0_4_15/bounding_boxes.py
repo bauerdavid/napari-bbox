@@ -41,6 +41,7 @@ class BoundingBoxLayer(Layer):
     _highlight_color = (0, 0.6, 1)
     _highlight_width = 1.5
     _max_bounding_boxes_thumbnail = 100
+
     def __init__(self,
                  data=None,
                  *,
@@ -70,11 +71,12 @@ class BoundingBoxLayer(Layer):
                  opacity=0.7,
                  blending='translucent',
                  visible=True,
+                 experimental_clipping_planes=None,
     ):
-        if data is None:
+        if data is None or len(data) == 0:
             if ndim is None:
                 ndim = 2
-            data = np.empty((0, 2, ndim))
+            data = np.empty((0, 0, ndim))
         else:
             data = np.asarray(data)
             data_ndim = data.shape[-1]
@@ -99,6 +101,7 @@ class BoundingBoxLayer(Layer):
             opacity=opacity,
             blending=blending,
             visible=visible,
+            experimental_clipping_planes=experimental_clipping_planes,
         )
         self.events.add(
             mode=Event,

@@ -71,6 +71,7 @@ class BoundingBoxLayer(Layer):
                  opacity=0.7,
                  blending='translucent',
                  visible=True,
+                 experimental_clipping_planes=None,
     ):
         if data is None or len(data) == 0:
             if ndim is None:
@@ -100,6 +101,7 @@ class BoundingBoxLayer(Layer):
             opacity=opacity,
             blending=blending,
             visible=visible,
+            experimental_clipping_planes=experimental_clipping_planes,
         )
         self.events.add(
             mode=Event,

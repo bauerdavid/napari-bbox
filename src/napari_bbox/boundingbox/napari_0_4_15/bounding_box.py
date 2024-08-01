@@ -173,14 +173,16 @@ class BoundingBox(ABC):
 
         if self.ndisplay == 2:
             self._box = rectangle_to_box(self.data_displayed)
-
+        self._update_slice_key()
+        
+    def _update_slice_key(self):
         data_not_displayed = self.data[:, self.dims_not_displayed]
         self.slice_key = np.round(
             [
                 np.min(data_not_displayed, axis=0),
                 np.max(data_not_displayed, axis=0),
             ]
-        ).astype('int')
+        ).astype('int')        
 
     @property
     def ndisplay(self):
@@ -338,6 +340,7 @@ class BoundingBox(ABC):
         self._edge_vertices = centers
         self._edge_offsets = offsets
         self._edge_triangles = triangles
+        self._update_slice_key()
 
     def shift(self, shift):
         """Performs a 2D shift on the bounding box

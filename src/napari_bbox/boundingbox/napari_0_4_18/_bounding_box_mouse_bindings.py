@@ -1,5 +1,7 @@
 # A copy of napari.layers.shapes._shapes_mouse_bindings
 from __future__ import annotations
+from ..napari_0_4_15._bounding_box_mouse_bindings import *
+from ..napari_0_4_15._bounding_box_mouse_bindings import _drag_selection_box
 
 from copy import copy
 from typing import TYPE_CHECKING
@@ -13,35 +15,14 @@ from ._bounding_box_constants import Box, Mode
 from ..._utils import NAPARI_VERSION
 
 if TYPE_CHECKING:
-    from typing import List, Optional, Tuple
+    from typing import List, Tuple
 
     import numpy.typing as npt
     from vispy.app.canvas import MouseEvent
 
 
-
-def highlight(layer, event: MouseEvent) -> None:
-    """Render highlights of bounding boxes.
-
-    Highlight hovered bounding boxes.
-
-    Parameters
-    ----------
-    layer: BoundingBoxLayer
-        Bounding box layer
-    event: MouseEvent
-        A proxy read only wrapper around a vispy mouse event. Though not used here it is passed as argument by the
-        bounding box layer mouse move callbacks.
-
-    Returns
-    -------
-    None
-    """
-    layer._set_highlight()
-
-
-def select(layer, event: MouseEvent) -> None:
-    """Select bounding boxes or vertices either in select or direct select mode.
+def select(layer, event) -> None:
+    """Select bounding boxes or vertices either in select mode.
 
     Once selected bounding boxes can be moved or resized, and vertices can be moved
     depending on the mode. Holding shift when resizing a bounding box will preserve
@@ -111,7 +92,7 @@ def select(layer, event: MouseEvent) -> None:
             )
             for i in layer.selected_data
         )
-        if NAPARI_VERSION >= version.parse("0.4.19"):
+        if NAPARI_VERSION >= "0.4.19":
             layer.events.data(
                 value=layer.data,
                 action=ActionType.CHANGED,
@@ -147,33 +128,6 @@ def select(layer, event: MouseEvent) -> None:
 
     if update_thumbnail:
         layer._update_thumbnail()
-
-
-def add_bounding_box(layer, event: MouseEvent) -> None:
-    """Add a bounding box.
-
-    Parameters
-    ----------
-    layer: BoundingBoxLayer
-        Bounding box layer
-    event: MouseEvent
-        A proxy read only wrapper around a vispy mouse event.
-    """
-    size = layer._vertex_size * layer.scale_factor / 4
-    coordinates = layer.world_to_data(event.position)
-    corner = np.array(coordinates).reshape(1, -1)
-
-    data = np.tile(corner, (2**layer.ndim, 1))
-    sizes = np.eye(layer.ndim)*size
-    s_idx = [[]]
-    for d in range(layer.ndim):
-        s_idx.extend(list(e.copy()+[d] for e in s_idx))
-    addition = np.asarray([sizes[idx].sum(0) for idx in s_idx])
-    data = data + addition
-    data = data[np.newaxis]
-    yield from _add_bounding_box(
-        layer, event, data=data
-    )
 
 
 def _add_bounding_box(
@@ -244,30 +198,6 @@ def finish_drawing_bounding_box(layer, event: MouseEvent) -> None:
     layer._finish_drawing()
 
 
-def _drag_selection_box(layer, coordinates: Tuple[float, ...]) -> None:
-    """Drag a selection box.
-
-    Parameters
-    ----------
-    layer : BoundingBoxLayer
-        Bounding box layer.
-    coordinates : Tuple[float, ...]
-        The current position of the cursor during the mouse move event in image data space.
-    """
-    # If something selected return
-    if len(layer.selected_data) > 0:
-        return
-
-    coord = [coordinates[i] for i in layer._slice_input.displayed]
-
-    # Create or extend a selection box
-    layer._is_selecting = True
-    if layer._drag_start is None:
-        layer._drag_start = coord
-    layer._drag_box = np.array([layer._drag_start, coord])
-    layer._set_highlight()
-
-
 def _set_drag_start(
     layer, coordinates: Tuple[float, ...]
 ) -> List[float, ...]:
@@ -318,7 +248,7 @@ def _move_active_element_under_cursor(
         [Mode.SELECT, Mode.ADD_BOUNDING_BOX]
     ):
         return
-    if NAPARI_VERSION >= version.parse("0.4.19") and layer._mode == Mode.SELECT and not layer._is_moving:
+    if NAPARI_VERSION >= "0.4.19" and layer._mode == Mode.SELECT and not layer._is_moving:
         vertex_indices = tuple(
             tuple(
                 vertex_index

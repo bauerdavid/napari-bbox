@@ -15,7 +15,7 @@ from ._widget import BoundingBoxCreator
 
 from napari import Viewer
 
-if NAPARI_VERSION >= version.parse("0.4.18"):
+if NAPARI_VERSION >= "0.4.18":
 
     def revert_last_dim_point_cb(viewer):
         def revert_last_dim_point(e):

@@ -29,12 +29,240 @@ from ._bounding_box_mouse_bindings import select, highlight, add_bounding_box
 # from ._bounding_boxes_key_bindings import *
 from .qt_bounding_box_control import *
 from .vispy_bounding_box_layer import *
-from ._bounding_box_utils import create_box, number_of_bounding_boxes
+from ._bounding_box_utils import create_box, number_of_bounding_boxes, validate_num_vertices
+from ..._helper_functions import layer_ndisplay, layer_dims_displayed, layer_dims_order, layer_dims_not_displayed, \
+    layer_slice_indices
 
 DEFAULT_COLOR_CYCLE = np.array([[1, 0, 1, 1], [0, 1, 0, 1]])
 
 
 class BoundingBoxLayer(Layer):
+    """Bounding box layer.
+
+    Parameters
+    ----------
+    data : list or array
+        List of bounding box data, where each element is an (N, D) array of the
+        N vertices of a Bounding box in D dimensions. Can be an 3-dimensional
+        array.
+    ndim : int
+        Number of dimensions for bounding boxes. When data is not None, ndim must be D.
+        An empty bounding box layer can be instantiated with arbitrary ndim.
+    features : dict[str, array-like] or Dataframe-like
+        Features table where each row corresponds to a bounding box and each column
+        is a feature.
+    feature_defaults : dict[str, Any] or Dataframe-like
+        The default value of each feature in a table with one row.
+    properties : dict {str: array (N,)}, DataFrame
+        Properties for each bounding box. Each property should be an array of length N,
+        where N is the number of bounding boxes.
+    property_choices : dict {str: array (N,)}
+        possible values for each property.
+    text : str, dict
+        Text to be displayed with the bounding boxes. If text is set to a key in properties,
+        the value of that property will be displayed. Multiple properties can be
+        composed using f-string-like syntax (e.g., '{property_1}, {float_property:.2f}).
+        A dictionary can be provided with keyword arguments to set the text values
+        and display properties. See TextManager.__init__() for the valid keyword arguments.
+        For example usage, see /napari/examples/add_shapes_with_text.py.
+    edge_width : float or list
+        Thickness of lines and edges. If a list is supplied it must be the
+        same length as the length of `data` and each element will be
+        applied to each bounding box otherwise the same value will be used for all
+        bounding boxes.
+    edge_color : str, array-like
+        If string can be any color name recognized by vispy or hex value if
+        starting with `#`. If array-like must be 1-dimensional array with 3
+        or 4 elements. If a list is supplied it must be the same length as
+        the length of `data` and each element will be applied to each bounding box
+        otherwise the same value will be used for all bounding boxes.
+    edge_color_cycle : np.ndarray, list
+        Cycle of colors (provided as string name, RGB, or RGBA) to map to edge_color if a
+        categorical attribute is used color the vectors.
+    edge_colormap : str, napari.utils.Colormap
+        Colormap to set edge_color if a continuous attribute is used to set face_color.
+    edge_contrast_limits : None, (float, float)
+        clims for mapping the property to a color map. These are the min and max value
+        of the specified property that are mapped to 0 and 1, respectively.
+        The default value is None. If set the none, the clims will be set to
+        (property.min(), property.max())
+    face_color : str, array-like
+        If string can be any color name recognized by vispy or hex value if
+        starting with `#`. If array-like must be 1-dimensional array with 3
+        or 4 elements. If a list is supplied it must be the same length as
+        the length of `data` and each element will be applied to each bounding box
+        otherwise the same value will be used for all bounding boxes.
+    face_color_cycle : np.ndarray, list
+        Cycle of colors (provided as string name, RGB, or RGBA) to map to face_color if a
+        categorical attribute is used color the vectors.
+    face_colormap : str, napari.utils.Colormap
+        Colormap to set face_color if a continuous attribute is used to set face_color.
+    face_contrast_limits : None, (float, float)
+        clims for mapping the property to a color map. These are the min and max value
+        of the specified property that are mapped to 0 and 1, respectively.
+        The default value is None. If set the none, the clims will be set to
+        (property.min(), property.max())
+    z_index : int or list
+        Specifier of z order priority. Bounding boxes with higher z order are
+        displayed ontop of others. If a list is supplied it must be the
+        same length as the length of `data` and each element will be
+        applied to each bounding box otherwise the same value will be used for all
+        bounding boxes.
+    name : str
+        Name of the layer.
+    metadata : dict
+        Layer metadata.
+    scale : tuple of float
+        Scale factors for the layer.
+    translate : tuple of float
+        Translation values for the layer.
+    rotate : float, 3-tuple of float, or n-D array.
+        If a float convert into a 2D rotation matrix using that value as an
+        angle. If 3-tuple convert into a 3D rotation matrix, using a yaw,
+        pitch, roll convention. Otherwise assume an nD rotation. Angles are
+        assumed to be in degrees. They can be converted from radians with
+        np.degrees if needed.
+    shear : 1-D array or n-D array
+        Either a vector of upper triangular values, or an nD shear matrix with
+        ones along the main diagonal.
+    affine : n-D array or napari.utils.transforms.Affine
+        (N+1, N+1) affine transformation matrix in homogeneous coordinates.
+        The first (N, N) entries correspond to a linear transform and
+        the final column is a length N translation vector and a 1 or a napari
+        `Affine` transform object. Applied as an extra transform on top of the
+        provided scale, rotate, and shear values.
+    opacity : float
+        Opacity of the layer visual, between 0.0 and 1.0.
+    blending : str
+        One of a list of preset blending modes that determines how RGB and
+        alpha values of the layer visual get mixed. Allowed values are
+        {'opaque', 'translucent', and 'additive'}.
+    visible : bool
+        Whether the layer visual is currently being displayed.
+    cache : bool
+        Whether slices of out-of-core datasets should be cached upon retrieval.
+        Currently, this only applies to dask arrays.
+
+    Attributes
+    ----------
+    data : (N, ) list of array
+        List of bounding box data, where each element is an (N, D) array of the
+        N vertices of a bounding box in D dimensions.
+    features : Dataframe-like
+        Features table where each row corresponds to a bounding box and each column
+        is a feature.
+    feature_defaults : DataFrame-like
+        Stores the default value of each feature in a table with one row.
+    properties : dict {str: array (N,)}, DataFrame
+        Properties for each bounding box. Each property should be an array of length N,
+        where N is the number of bounding boxes.
+    text : str, dict
+        Text to be displayed with the bounding boxes. If text is set to a key in properties,
+        the value of that property will be displayed. Multiple properties can be
+        composed using f-string-like syntax (e.g., '{property_1}, {float_property:.2f}).
+        For example usage, see /napari/examples/add_shapes_with_text.py.
+    edge_color : str, array-like
+        Color of the bounding box border. Numeric color values should be RGB(A).
+    face_color : str, array-like
+        Color of the bounding box face. Numeric color values should be RGB(A).
+    edge_width : (N, ) list of float
+        Edge width for each bounding box.
+    z_index : (N, ) list of int
+        z-index for each bounding box.
+    current_edge_width : float
+        Thickness of lines and edges of the next bounding box to be added or the
+        currently selected bounding box.
+    current_edge_color : str
+        Color of the edge of the next bounding box to be added or the currently
+        selected bounding box.
+    current_face_color : str
+        Color of the face of the next bounding box to be added or the currently
+        selected bounding box.
+    selected_data : set
+        List of currently selected bounding boxes.
+    nbounding_boxes : int
+        Total number of bounding boxes.
+    mode : Mode
+        Interactive mode. The normal, default mode is PAN_ZOOM, which
+        allows for normal interactivity with the canvas.
+
+        The SELECT mode allows for entire bounding boxes to be selected, moved and
+        resized.
+
+        The ADD_BOUNDING_BOX mode allows for bounding boxes to be added.
+
+    Notes
+    -----
+    _data_dict : Dict of BoundingBoxList
+        Dictionary containing all the bounding box data indexed by slice tuple
+    _data_view : BoundingBoxList
+        Object containing the currently viewed bounding box data.
+    _selected_data_history : set
+        Set of currently selected captured on press of <space>.
+    _selected_data_stored : set
+        Set of selected previously displayed. Used to prevent rerendering the
+        same highlighted bounding boxes when no data has changed.
+    _selected_box : None | np.ndarray
+        `None` if no bounding boxes are selected, otherwise a 10x2 array of vertices of
+        the interaction box. The first 8 points are the corners and midpoints
+        of the box. The 9th point is the center of the box, and the last point
+        is the location of the rotation handle that can be used to rotate the
+        box.
+    _drag_start : None | np.ndarray
+        If a drag has been started and is in progress then a length 2 array of
+        the initial coordinates of the drag. `None` otherwise.
+    _drag_box : None | np.ndarray
+        If a drag box is being created to select bounding boxes then this is a 2x2
+        array of the two extreme corners of the drag. `None` otherwise.
+    _drag_box_stored : None | np.ndarray
+        If a drag box is being created to select bounding boxes then this is a 2x2
+        array of the two extreme corners of the drag that have previously been
+        rendered. `None` otherwise. Used to prevent rerendering the same
+        drag box when no data has changed.
+    _is_moving : bool
+        Bool indicating if any bounding boxes are currently being moved.
+    _is_selecting : bool
+        Bool indicating if a drag box is currently being created in order to
+        select bounding boxes.
+    _is_creating : bool
+        Bool indicating if any bounding boxes are currently being created.
+    _fixed_aspect : bool
+        Bool indicating if aspect ratio of bounding boxes should be preserved on
+        resizing.
+    _aspect_ratio : float
+        Value of aspect ratio to be preserved if `_fixed_aspect` is `True`.
+    _fixed_vertex : None | np.ndarray
+        If a scaling or rotation is in progress then a length 2 array of the
+        coordinates that are remaining fixed during the move. `None` otherwise.
+    _fixed_index : int
+        If a scaling or rotation is in progress then the index of the vertex of
+        the bounding box that is remaining fixed during the move. `None`
+        otherwise.
+    _update_properties : bool
+        Bool indicating if properties are to allowed to update the selected
+        bounding boxes when they are changed. Blocking this prevents circular loops
+        when bounding boxes are selected and the properties are changed based on that
+        selection
+    _allow_thumbnail_update : bool
+        Flag set to true to allow the thumbnail to be updated. Blocking the thumbnail
+        can be advantageous where responsiveness is critical.
+    _clipboard : dict
+        Dict of bounding box objects that are to be used during a copy and paste.
+    _colors : list
+        List of supported vispy color names.
+    _vertex_size : float
+        Size of the vertices of the bounding boxes in Canvas
+        coordinates.
+    _rotation_handle_length : float
+        Length of the rotation handle of the bounding box in Canvas
+        coordinates.
+    _input_ndim : int
+        Dimensions of bounding box data.
+    _thumbnail_update_thresh : int
+        If there are more than this number of bounding boxes, the thumbnail
+        won't update during interactive events
+    """
+
     _colors = get_color_names()
     _vertex_size = 10
     _rotation_handle_length = 20
@@ -88,7 +316,8 @@ class BoundingBoxLayer(Layer):
                     )
                 )
             ndim = data_ndim
-        super().__init__(
+        Layer.__init__(
+            self,
             data,
             ndim=ndim,
             name=name,
@@ -122,7 +351,7 @@ class BoundingBoxLayer(Layer):
         self._allow_thumbnail_update = True
 
         self._display_order_stored = []
-        self._ndisplay_stored = self._ndisplay
+        self._ndisplay_stored = layer_ndisplay(self)
 
         self._feature_table = _FeatureTable.from_layer(
             features=features,
@@ -138,9 +367,9 @@ class BoundingBoxLayer(Layer):
         else:
             self._current_edge_width = 1
 
-        self._data_view = BoundingBoxList(ndisplay=self._ndisplay)
-        self._data_view.slice_key = np.array(self._slice_indices)[
-            list(self._dims_not_displayed)
+        self._data_view = BoundingBoxList(ndisplay=layer_ndisplay(self))
+        self._data_view.slice_key = np.array(layer_slice_indices(self))[
+            list(layer_dims_not_displayed(self))
         ]
 
         self._value = (None, None)
@@ -210,7 +439,7 @@ class BoundingBoxLayer(Layer):
                 default="black",
             )
             self.current_properties = {}
-        if version.parse(napari.__version__) == version.parse("0.4.15"):
+        if NAPARI_VERSION == "0.4.15":
             self._text = TextManager._from_layer(
                 text=text,
                 n_text=self.nbounding_boxes,
@@ -227,7 +456,7 @@ class BoundingBoxLayer(Layer):
         self._mouse_down = False
 
     def _initialize_current_color_for_empty_layer(
-            self, color: ColorType, attribute: str
+        self, color: ColorType, attribute: str
     ):
         """Initialize current_{edge,face}_color when starting with empty layer.
 
@@ -331,9 +560,9 @@ class BoundingBoxLayer(Layer):
                 )
             )
 
-        self._data_view = BoundingBoxList(ndisplay=self._ndisplay)
-        self._data_view.slice_key = np.array(self._slice_indices)[
-            list(self._dims_not_displayed)
+        self._data_view = BoundingBoxList(ndisplay=layer_ndisplay(self))
+        self._data_view.slice_key = np.array(layer_slice_indices(self))[
+            list(layer_dims_not_displayed(self))
         ]
         self.add(
             data,
@@ -346,6 +575,7 @@ class BoundingBoxLayer(Layer):
         self._update_dims()
         self.events.data(value=self.data)
         self._set_editable()
+
     @property
     def features(self):
         """Dataframe-like features table.
@@ -393,7 +623,7 @@ class BoundingBoxLayer(Layer):
                 ),
                 RuntimeWarning,
             )
-        if version.parse(napari.__version__) == version.parse("0.4.15"):
+        if NAPARI_VERSION == "0.4.15":
             if self.text.values is not None:
                 self.refresh_text()
         else:
@@ -411,7 +641,7 @@ class BoundingBoxLayer(Layer):
 
     @feature_defaults.setter
     def feature_defaults(
-            self, defaults: Union[Dict[str, Any], pd.DataFrame]
+        self, defaults: Union[Dict[str, Any], pd.DataFrame]
     ) -> None:
         self._feature_table.set_defaults(defaults)
         self.events.current_properties()
@@ -419,7 +649,7 @@ class BoundingBoxLayer(Layer):
 
     @property
     def properties(self) -> Dict[str, np.ndarray]:
-        """dict {str: np.ndarray (N,)}, DataFrame: Annotations for each shape"""
+        """dict {str: np.ndarray (N,)}, DataFrame: Annotations for each bounding box"""
         return self._feature_table.properties()
 
     @properties.setter
@@ -432,14 +662,17 @@ class BoundingBoxLayer(Layer):
 
     def _get_ndim(self):
         """Determine number of dimensions of the layer."""
-        if self.nbounding_boxes == 0:
-            ndim = self.ndim
-        else:
-            ndim = self.data[0].shape[1]
+        ndim = self.ndim if self.nbounding_boxes == 0 else self.data[0].shape[1]
         return ndim
 
     @property
     def _extent_data(self) -> np.ndarray:
+        """Extent of layer in data coordinates.
+
+        Returns
+        -------
+        extent_data : array, shape (2, D)
+        """
         if len(self.data) == 0:
             extrema = np.full((2, self.ndim), np.nan)
         else:
@@ -756,8 +989,8 @@ class BoundingBoxLayer(Layer):
                 raise ValueError(
                     trans._('Length of list does not match number of bounding boxes')
                 )
-            else:
-                widths = width
+
+            widths = width
         else:
             widths = [width for _ in range(self.nbounding_boxes)]
 
@@ -785,8 +1018,8 @@ class BoundingBoxLayer(Layer):
                 raise ValueError(
                     trans._('Length of list does not match number of bounding boxes')
                 )
-            else:
-                z_indices = z_index
+
+            z_indices = z_index
         else:
             z_indices = [z_index for _ in range(self.nbounding_boxes)]
 
@@ -861,7 +1094,7 @@ class BoundingBoxLayer(Layer):
             else:
                 setattr(self, f'_{attribute}_color_mode', ColorMode.CYCLE)
             setattr(self, f'_{attribute}_color_property', color)
-            self.refresh_colors()
+            self.refresh_colors(update_color_mapping=True)
 
         else:
             if len(self.data) > 0:
@@ -1168,19 +1401,31 @@ class BoundingBoxLayer(Layer):
         text : (N x 1) np.ndarray
             Array of text strings for the N text elements in view
         """
-        if version.parse(napari.__version__) > version.parse("0.4.15"):
+        if NAPARI_VERSION > "0.4.15":
             self.text.string._apply(self.features)
         return self.text.view_text(self._indices_view)
 
     @property
-    def _view_text_coords(self) -> np.ndarray:
+    def _view_text_coords(self):
         """Get the coordinates of the text elements in view
 
         Returns
         -------
         text_coords : (N x D) np.ndarray
             Array of coordinates for the N text elements in view
+        anchor_x : str
+            The vispy text anchor for the x axis
+        anchor_y : str
+            The vispy text anchor for the y axis
         """
+        ndisplay = layer_ndisplay(self)
+
+        # short circuit if no text present
+        if self.text.values.shape == ():
+            return self.text.compute_text_coords(
+                np.zeros((0, ndisplay)), ndisplay
+            )
+
         # get the coordinates of the vertices for the bounding boxes in view
         in_view_bounding_boxes_coords = [
             self._data_view.data[i] for i in self._indices_view
@@ -1188,13 +1433,11 @@ class BoundingBoxLayer(Layer):
 
         # get the coordinates for the dimensions being displayed
         sliced_in_view_coords = [
-            position[:, self._dims_displayed]
+            position[:, layer_dims_displayed(self)]
             for position in in_view_bounding_boxes_coords
         ]
 
-        return self.text.compute_text_coords(
-            sliced_in_view_coords, self._ndisplay
-        )
+        return self.text.compute_text_coords(sliced_in_view_coords, ndisplay)
 
     @property
     def _view_text_color(self) -> np.ndarray:
@@ -1416,11 +1659,12 @@ class BoundingBoxLayer(Layer):
             applied to each bounding box otherwise the same value will be used for all
             bounding boxes.
         """
-
+        data = np.asarray(data)
         if edge_width is None:
             edge_width = self.current_edge_width
 
-        n_new_bounding_boxes = len(data) if type(data) == list or data.ndim > 2 else 1
+        n_new_bounding_boxes = number_of_bounding_boxes(data)
+
         if edge_color is None:
             edge_color = self._get_new_bounding_box_color(
                 n_new_bounding_boxes, attribute='edge'
@@ -1509,7 +1753,7 @@ class BoundingBoxLayer(Layer):
             bounding boxes.
         """
 
-        n_bounding_boxes = len(data)
+        n_bounding_boxes = number_of_bounding_boxes(data)
         with self.block_update_properties():
             self._edge_color_property = ''
             self.edge_color_cycle_map = {}
@@ -1631,8 +1875,8 @@ class BoundingBoxLayer(Layer):
 
             self._add_bounding_boxes_to_view(bounding_box_inputs, self._data_view)
 
-        self._display_order_stored = copy(self._dims_order)
-        self._ndisplay_stored = copy(self._ndisplay)
+        self._display_order_stored = copy(layer_dims_order(self))
+        self._ndisplay_stored = copy(layer_ndisplay(self))
         self._update_dims()
 
     def _add_bounding_boxes_to_view(self, bounding_box_inputs, data_view):
@@ -1643,8 +1887,8 @@ class BoundingBoxLayer(Layer):
                 d,
                 edge_width=ew,
                 z_index=z,
-                dims_order=self._dims_order,
-                ndisplay=self._ndisplay,
+                dims_order=layer_dims_order(self),
+                ndisplay=layer_ndisplay(self),
             )
 
             # Add bounding box
@@ -1658,7 +1902,7 @@ class BoundingBoxLayer(Layer):
 
     @text.setter
     def text(self, text):
-        if version.parse(napari.__version__) == version.parse("0.4.15"):
+        if NAPARI_VERSION == "0.4.15":
             self._text._update_from_layer(
                 text=text,
                 n_text=self.nbounding_boxes,
@@ -1675,28 +1919,30 @@ class BoundingBoxLayer(Layer):
 
         This is generally used if the properties were updated without changing the data
         """
-        if version.parse(napari.__version__) == version.parse("0.4.15"):
+        if NAPARI_VERSION == "0.4.15":
             self.text.refresh_text(self.properties)
         else:
             self.text.refresh(self.features)
 
     def _set_view_slice(self):
         """Set the view given the slicing indices."""
-        if not self._ndisplay == self._ndisplay_stored:
+        ndisplay = layer_ndisplay(self)
+        if ndisplay != self._ndisplay_stored:
             self.selected_data = set()
-            self._data_view.ndisplay = min(self.ndim, self._ndisplay)
-            self._ndisplay_stored = copy(self._ndisplay)
+            self._data_view.ndisplay = min(self.ndim, ndisplay)
+            self._ndisplay_stored = copy(ndisplay)
             self._clipboard = {}
 
-        if not self._dims_order == self._display_order_stored:
+        dims_order = layer_dims_order(self)
+        if dims_order != self._display_order_stored:
             self.selected_data = set()
-            self._data_view.update_dims_order(self._dims_order)
-            self._display_order_stored = copy(self._dims_order)
+            self._data_view.update_dims_order(dims_order)
+            self._display_order_stored = copy(dims_order)
             # Clear clipboard if dimensions swap
             self._clipboard = {}
 
-        slice_key = np.array(self._slice_indices)[
-            list(self._dims_not_displayed)
+        slice_key = np.array(layer_slice_indices(self))[
+            list(layer_dims_not_displayed(self))
         ]
         if not np.all(slice_key == self._data_view.slice_key):
             self.selected_data = set()
@@ -1896,27 +2142,18 @@ class BoundingBoxLayer(Layer):
         self._fixed_vertex = None
         self._value = (None, None)
         self._moving_value = (None, None)
-        if self._is_creating is True and self._mode == Mode.ADD_PATH:
-            vertices = self._data_view.bounding_boxes[index].data
-            if len(vertices) <= 2:
-                self._data_view.remove(index)
-            else:
-                self._data_view.edit(index, vertices[:-1])
-        if self._is_creating is True and self._mode == Mode.ADD_POLYGON:
-            vertices = self._data_view.bounding_boxes[index].data
-            if len(vertices) <= 3:
-                self._data_view.remove(index)
-            else:
-                self._data_view.edit(index, vertices[:-1])
         self._is_creating = False
         self._update_dims()
 
     @contextmanager
     def block_thumbnail_update(self):
         """Use this context manager to block thumbnail updates"""
+        previous = self._allow_thumbnail_update
         self._allow_thumbnail_update = False
-        yield
-        self._allow_thumbnail_update = True
+        try:
+            yield
+        finally:
+            self._allow_thumbnail_update = previous
 
     def _update_thumbnail(self, event=None):
         """Update thumbnail with current bounding boxes and colors."""
@@ -1927,12 +2164,13 @@ class BoundingBoxLayer(Layer):
             # the offset is needed to ensure that the top left corner of the bounding boxes
             # corresponds to the top left corner of the thumbnail
             de = self._extent_data
-            offset = np.array([de[0, d] for d in self._dims_displayed]) + 0.5
+            dims_displayed = layer_dims_displayed(self)
+            offset = np.array([de[0, d] for d in dims_displayed]) + 0.5
             # calculate range of values for the vertices and pad with 1
             # padding ensures the entire bounding box can be represented in the thumbnail
             # without getting clipped
             bounding_box = np.ceil(
-                [de[1, d] - de[0, d] + 1 for d in self._dims_displayed]
+                [de[1, d] - de[0, d] + 1 for d in dims_displayed]
             ).astype(int)
             zoom_factor = np.divide(
                 self._thumbnail_shape[:2], bounding_box[-2:]
@@ -1955,6 +2193,15 @@ class BoundingBoxLayer(Layer):
             self._data_view.remove(ind)
 
         if len(index) > 0:
+            if NAPARI_VERSION >= "0.4.19":
+                self.events.data(
+                    value=self.data,
+                    action=ActionType.REMOVING,
+                    data_indices=tuple(
+                        index,
+                    ),
+                    vertex_indices=((),),
+                )
             self._feature_table.remove(index)
             self.text.remove(index)
             self._data_view._edge_color = np.delete(
@@ -1987,7 +2234,7 @@ class BoundingBoxLayer(Layer):
         #     box[Box.HANDLE] = box[Box.TOP_CENTER] + r * handle_vec / cur_len
         self._selected_box = box + center
 
-    def _transform_box(self, transform, center=[0, 0]):
+    def _transform_box(self, transform, center=(0, 0)):
         """Perform a linear transformation on the selected box.
 
         Parameters
@@ -2023,13 +2270,13 @@ class BoundingBoxLayer(Layer):
             Index of vertex if any that is at the coordinates. Returns `None`
             if no vertex is found.
         """
-        if self._ndisplay == 3:
+        if layer_ndisplay(self) == 3:
             return (None, None)
 
         if self._is_moving:
             return self._moving_value
 
-        coord = [position[i] for i in self._dims_displayed]
+        coord = [position[i] for i in layer_dims_displayed(self)]
 
         # Check selected bounding boxes
         value = None
@@ -2085,7 +2332,7 @@ class BoundingBoxLayer(Layer):
                 'edge_color': deepcopy(self._data_view._edge_color[index]),
                 'face_color': deepcopy(self._data_view._face_color[index]),
                 'features': deepcopy(self.features.iloc[index]),
-                'indices': self._slice_indices,
+                'indices': layer_slice_indices(self),
             }
             if len(self.text.values) == 0:
                 self._clipboard['text'] = np.empty(0)
@@ -2101,7 +2348,7 @@ class BoundingBoxLayer(Layer):
             # Calculate offset based on dimension shifts
             offset = [
                 self._slice_indices[i] - self._clipboard['indices'][i]
-                for i in self._dims_not_displayed
+                for i in layer_dims_not_displayed(self)
             ]
 
             self._feature_table.append(self._clipboard['features'])
@@ -2110,9 +2357,8 @@ class BoundingBoxLayer(Layer):
             for i, bb in enumerate(self._clipboard['data']):
                 bbox = deepcopy(bb)
                 data = copy(bbox.data)
-                data[:, self._dims_not_displayed] = data[
-                                                    :, self._dims_not_displayed
-                                                    ] + np.array(offset)
+                not_disp = layer_dims_not_displayed(self)
+                data[:, not_disp] = data[:, not_disp] + np.array(offset)
                 bbox.data = data
                 face_color = self._clipboard['face_color'][i]
                 edge_color = self._clipboard['edge_color'][i]
@@ -2131,12 +2377,15 @@ class BoundingBoxLayer(Layer):
 
             self.move_to_front()
 
-    def _set_editable(self, editable=None):
-        if editable is None:
-            if self._ndisplay == 3:
-                self.editable = False
-            else:
-                self.editable = True
-
+    def _on_editable_changed(self) -> None:
         if not self.editable:
             self.mode = Mode.PAN_ZOOM
+
+    def _reset_editable(self) -> None:
+        self.editable = layer_ndisplay(self) == 2
+
+    def _set_editable(self, editable=None):
+        if editable is None:
+            self._reset_editable()
+
+        self._on_editable_changed()

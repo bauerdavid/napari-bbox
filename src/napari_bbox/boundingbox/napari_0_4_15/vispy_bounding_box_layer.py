@@ -8,6 +8,9 @@ from napari.settings import get_settings
 from packaging import version
 from vispy.scene import Compound, Mesh, Line, Markers, Text
 
+from ..._utils import NAPARI_VERSION
+from ..._helper_functions import layer_ndisplay
+
 
 class VispyBoundingBoxLayer(VispyBaseLayer):
     def __init__(self, layer):
@@ -26,8 +29,11 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
         self.layer.events.face_color.connect(self._on_data_change)
         self.layer.text.events.connect(self._on_text_change)
         self.layer.events.highlight.connect(self._on_highlight_change)
+
+        # TODO: move to overlays
         self.node._subvisuals[3].symbol = 'square'
         self.node._subvisuals[3].scaling = False
+
         self.reset()
         self._on_data_change()
         self._on_highlight_change()
@@ -43,11 +49,15 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
             vertices = vertices[:, ::-1]
 
         if len(vertices) == 0 or len(faces) == 0:
-            vertices = np.zeros((3, self.layer._ndisplay))
+            vertices = np.zeros((3, layer_ndisplay(self.layer)))
             faces = np.array([[0, 1, 2]])
             colors = np.array([[0, 0, 0, 0]])
 
-        if self.layer._ndisplay == 3 and self.layer.ndim == 2:
+        if (
+            len(self.layer.data)
+            and layer_ndisplay(self.layer) == 3
+            and self.layer.ndim == 2
+        ):
             vertices = np.pad(vertices, ((0, 0), (0, 1)), mode='constant')
 
         self.node._subvisuals[0].set_data(
@@ -65,9 +75,9 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
 
         # Compute the vertices and faces of any bounding box outlines
         vertices, faces = self.layer._outline_bounding_boxes()
-
+        ndisplay = layer_ndisplay(self.layer)
         if vertices is None or len(vertices) == 0 or len(faces) == 0:
-            vertices = np.zeros((3, self.layer._ndisplay))
+            vertices = np.zeros((3, ndisplay))
             faces = np.array([[0, 1, 2]])
 
         self.node._subvisuals[1].set_data(
@@ -89,7 +99,7 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
         width = settings.appearance.highlight_thickness
 
         if vertices is None or len(vertices) == 0:
-            vertices = np.zeros((1, self.layer._ndisplay))
+            vertices = np.zeros((1, ndisplay))
             size = 0
         else:
             size = self.layer._vertex_size
@@ -101,11 +111,11 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
             edge_color=edge_color,
             edge_width=width,
             symbol='square',
-            **({"scaling": False} if version.parse(vispy.__version__) <= version.parse("0.11.0") else {}),
+            **({"scaling": False} if NAPARI_VERSION <= "0.11.0" else {}),
         )
 
         if pos is None or len(pos) == 0:
-            pos = np.zeros((1, self.layer._ndisplay))
+            pos = np.zeros((1, ndisplay))
             width = 0
 
         self.node._subvisuals[2].set_data(
@@ -125,10 +135,13 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
             self.node.update()
 
     def _on_text_change(self, event=None):
-        if event is not None and event.type == 'blending':
-            self._on_blending_change(event)
-        else:
-            self._update_text()
+        if event is not None:
+            if event.type == 'blending':
+                self._on_blending_change(event)
+                return
+            if event.type == 'values':
+                return
+        self._update_text()
 
     def _get_text_node(self):
         """Function to get the text node from the Compound visual"""

@@ -3,7 +3,7 @@ import numpy as np
 
 
 class Mesh:
-    """Contains meshses of shapes that will ultimately get rendered.
+    """Contains meshes of bounding boxes that will ultimately get rendered.
 
     Parameters
     ----------
@@ -15,27 +15,27 @@ class Mesh:
     ndisplay : int
         Number of displayed dimensions.
     vertices : np.ndarray
-         Qx2 array of vertices of all triangles for shapes including edges and
+         Qx2 array of vertices of all triangles for bounding boxes including edges and
          faces
     vertices_centers : np.ndarray
-         Qx2 array of centers of vertices of triangles for shapes. For vertices
+         Qx2 array of centers of vertices of triangles for bounding boxes. For vertices
          corresponding to faces these are the same as the actual vertices. For
          vertices corresponding to edges these values should be added to a
          scaled `vertices_offsets` to get the actual vertex positions.
          The scaling corresponds to the width of the edge
     vertices_offsets : np.ndarray
-         Qx2 array of offsets of vertices of triangles for shapes. For vertices
+         Qx2 array of offsets of vertices of triangles for bounding boxes. For vertices
          corresponding to faces these are 0. For vertices corresponding to
          edges these values should be scaled and added to the
          `vertices_centers` to get the actual vertex positions.
          The scaling corresponds to the width of the edge
     vertices_index : np.ndarray
-         Qx2 array of the index (0, ..., N-1) of each shape that each vertex
+         Qx2 array of the index (0, ..., N-1) of each bounding box that each vertex
          corresponds and the mesh type (0, 1) for face or edge.
     triangles : np.ndarray
         Px3 array of vertex indices that form the mesh triangles
     triangles_index : np.ndarray
-        Px2 array of  the index (0, ..., N-1) of each shape that each triangle
+        Px2 array of  the index (0, ..., N-1) of each bounding box that each triangle
         corresponds and the mesh type (0, 1) for face or edge.
     triangles_colors : np.ndarray
         Px4 array of the rgba color of each triangle
@@ -52,8 +52,7 @@ class Mesh:
 
     _types = ['face', 'edge']
 
-    def __init__(self, ndisplay=2):
-
+    def __init__(self, ndisplay=2) -> None:
         self._ndisplay = ndisplay
         self.clear()
 

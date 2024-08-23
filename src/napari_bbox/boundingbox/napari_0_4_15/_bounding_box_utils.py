@@ -283,11 +283,7 @@ def is_collinear(points):
 
     # The collinearity test takes three points, the first two are the first
     # two in the list, and then the third is iterated through in the loop
-    for p in points[2:]:
-        if orientation(points[0], points[1], p) != 0:
-            return False
-
-    return True
+    return all(orientation(points[0], points[1], p) == 0 for p in points[2:])
 
 
 def point_to_lines(point, lines):
@@ -480,85 +476,6 @@ def center_radii_to_corners(center, radii):
     return corners
 
 
-def triangulate_ellipse(corners, num_segments=100):
-    """Determines the triangulation of a path. The resulting `offsets` can
-    multiplied by a `width` scalar and be added to the resulting `centers`
-    to generate the vertices of the triangles for the triangulation, i.e.
-    `vertices = centers + width*offsets`. Using the `centers` and `offsets`
-    representation thus allows for the computed triangulation to be
-    independent of the line width.
-
-    Parameters
-    ----------
-    corners : np.ndarray
-        4xD array of four bounding corners of the ellipse. The ellipse will
-        still be computed properly even if the rectangle determined by the
-        corners is not axis aligned
-    num_segments : int
-        Integer determining the number of segments to use when triangulating
-        the ellipse
-
-    Returns
-    -------
-    vertices : np.ndarray
-        Mx2 array coordinates of vertices for triangulating an ellipse.
-        Includes the center vertex of the ellipse, followed by `num_segments`
-        vertices around the boundary of the ellipse
-    triangles : np.ndarray
-        Px2 array of the indices of the vertices for the triangles of the
-        triangulation. Has length given by `num_segments`
-    """
-    if not corners.shape[0] == 4:
-        raise ValueError(
-            trans._(
-                "Data shape does not match expected `[4, D]` shape specifying corners for the ellipse",
-                deferred=True,
-            )
-        )
-
-    center = corners.mean(axis=0)
-    adjusted = corners - center
-
-    vec = adjusted[1] - adjusted[0]
-    len_vec = np.linalg.norm(vec)
-    if len_vec > 0:
-        # rotate to be axis aligned
-        norm_vec = vec / len_vec
-        if corners.shape[1] == 2:
-            transform = np.array(
-                [[norm_vec[0], -norm_vec[1]], [norm_vec[1], norm_vec[0]]]
-            )
-        else:
-            transform = np.array(
-                [
-                    [0, 0],
-                    [norm_vec[0], -norm_vec[1]],
-                    [norm_vec[1], norm_vec[0]],
-                ]
-            )
-        adjusted = np.matmul(adjusted, transform)
-    else:
-        transform = np.eye(corners.shape[1])
-
-    radii = abs(adjusted[0])
-    vertices = np.zeros((num_segments + 1, 2), dtype=np.float32)
-    theta = np.linspace(0, np.deg2rad(360), num_segments)
-    vertices[1:, 0] = radii[0] * np.cos(theta)
-    vertices[1:, 1] = radii[1] * np.sin(theta)
-
-    if len_vec > 0:
-        # rotate back
-        vertices = np.matmul(vertices, transform.T)
-
-    # Shift back to center
-    vertices = vertices + center
-
-    triangles = np.array([[0, i + 1, i + 2] for i in range(num_segments)])
-    triangles[-1, 2] = 1
-
-    return vertices, triangles
-
-
 def triangulate_face(data):
     """Determines the triangulation of the face of a bounding box.
 
@@ -579,6 +496,77 @@ def triangulate_face(data):
     triangles = triangles.astype(np.uint32)
 
     return vertices, triangles
+
+
+def generate_tube_meshes(path, closed=False, tube_points=10):
+    """Generates list of mesh vertices and triangles from a path
+
+    Adapted from vispy.visuals.TubeVisual
+    https://github.com/vispy/vispy/blob/master/vispy/visuals/tube.py
+
+    Parameters
+    ----------
+    path : (N, 3) array
+        Vertices specifying the path.
+    closed : bool
+        Bool which determines if the path is closed or not.
+    tube_points : int
+        The number of points in the circle-approximating polygon of the
+        tube's cross section.
+
+    Returns
+    -------
+    centers : (M, 3) array
+        Vertices of all triangles for the lines
+    offsets : (M, D) array
+        offsets of all triangles for the lines
+    triangles : (P, 3) array
+        Vertex indices that form the mesh triangles
+    """
+    points = np.array(path).astype(float)
+
+    if closed and not np.all(points[0] == points[-1]):
+        points = np.concatenate([points, [points[0]]], axis=0)
+
+    tangents, normals, binormals = _frenet_frames(points, closed)
+
+    segments = len(points) - 1
+
+    # get the positions of each vertex
+    grid = np.zeros((len(points), tube_points, 3))
+    grid_off = np.zeros((len(points), tube_points, 3))
+    for i in range(len(points)):
+        pos = points[i]
+        normal = normals[i]
+        binormal = binormals[i]
+
+        # Add a vertex for each point on the circle
+        v = np.arange(tube_points, dtype=float) / tube_points * 2 * np.pi
+        cx = -1.0 * np.cos(v)
+        cy = np.sin(v)
+        grid[i] = pos
+        grid_off[i] = cx[:, np.newaxis] * normal + cy[:, np.newaxis] * binormal
+
+    # construct the mesh
+    indices = []
+    for i in range(segments):
+        for j in range(tube_points):
+            ip = (i + 1) % segments if closed else i + 1
+            jp = (j + 1) % tube_points
+
+            index_a = i * tube_points + j
+            index_b = ip * tube_points + j
+            index_c = ip * tube_points + jp
+            index_d = i * tube_points + jp
+
+            indices.append([index_a, index_b, index_d])
+            indices.append([index_b, index_c, index_d])
+    triangles = np.array(indices, dtype=np.uint32)
+
+    centers = grid.reshape(grid.shape[0] * grid.shape[1], 3)
+    offsets = grid_off.reshape(grid_off.shape[0] * grid_off.shape[1], 3)
+
+    return centers, offsets, triangles
 
 
 def triangulate_edge(path, closed=False):
@@ -608,15 +596,14 @@ def triangulate_edge(path, closed=False):
         Px3 array of the indices of the vertices that will form the
         triangles of the triangulation
     """
+
+    path = np.asanyarray(path)
+
     # Remove any equal adjacent points
     if len(path) > 2:
-        clean_path = np.array(
-            [
-                p
-                for i, p in enumerate(path)
-                if i == 0 or not np.all(p == path[i - 1])
-            ]
-        )
+        idx = np.concatenate([[True], ~np.all(path[1:] == path[:-1], axis=-1)])
+        clean_path = path[idx].copy()
+
         if clean_path.shape[0] == 1:
             clean_path = np.concatenate((clean_path, clean_path), axis=0)
     else:
@@ -800,77 +787,6 @@ def generate_2D_edge_meshes(path, closed=False, limit=3, bevel=False):
     return centers, offsets, triangles
 
 
-def generate_tube_meshes(path, closed=False, tube_points=10):
-    """Generates list of mesh vertices and triangles from a path
-
-    Adapted from vispy.visuals.TubeVisual
-    https://github.com/vispy/vispy/blob/master/vispy/visuals/tube.py
-
-    Parameters
-    ----------
-    path : (N, 3) array
-        Vertices specifying the path.
-    closed : bool
-        Bool which determines if the path is closed or not.
-    tube_points : int
-        The number of points in the circle-approximating polygon of the
-        tube's cross section.
-
-    Returns
-    -------
-    centers : (M, 3) array
-        Vertices of all triangles for the lines
-    offsets : (M, D) array
-        offsets of all triangles for the lines
-    triangles : (P, 3) array
-        Vertex indices that form the mesh triangles
-    """
-    points = np.array(path).astype(float)
-
-    if closed and not np.all(points[0] == points[-1]):
-        points = np.concatenate([points, [points[0]]], axis=0)
-
-    tangents, normals, binormals = _frenet_frames(points, closed)
-
-    segments = len(points) - 1
-
-    # get the positions of each vertex
-    grid = np.zeros((len(points), tube_points, 3))
-    grid_off = np.zeros((len(points), tube_points, 3))
-    for i in range(len(points)):
-        pos = points[i]
-        normal = normals[i]
-        binormal = binormals[i]
-
-        # Add a vertex for each point on the circle
-        v = np.arange(tube_points, dtype=float) / tube_points * 2 * np.pi
-        cx = -1.0 * np.cos(v)
-        cy = np.sin(v)
-        grid[i] = pos
-        grid_off[i] = cx[:, np.newaxis] * normal + cy[:, np.newaxis] * binormal
-
-    # construct the mesh
-    indices = []
-    for i in range(segments):
-        for j in range(tube_points):
-            ip = (i + 1) % segments if closed else i + 1
-            jp = (j + 1) % tube_points
-
-            index_a = i * tube_points + j
-            index_b = ip * tube_points + j
-            index_c = ip * tube_points + jp
-            index_d = i * tube_points + jp
-
-            indices.append([index_a, index_b, index_d])
-            indices.append([index_b, index_c, index_d])
-    triangles = np.array(indices, dtype=np.uint32)
-
-    centers = grid.reshape(grid.shape[0] * grid.shape[1], 3)
-    offsets = grid_off.reshape(grid_off.shape[0] * grid_off.shape[1], 3)
-
-    return centers, offsets, triangles
-
-
 def path_to_mask(mask_shape, vertices):
     """Converts a path to a boolean mask with `True` for points lying along
     each edge.
@@ -1001,80 +917,27 @@ def points_in_poly(points, vertices):
     return inside
 
 
-def extract_shape_type(data, shape_type=None):
-    # TODO: this should be removed
-    """Separates shape_type from data if present, and returns both.
-
-    Parameters
-    ----------
-    data : Array | Tuple(Array,str) | List[Array | Tuple(Array, str)] | Tuple(List[Array], str)
-        list or array of vertices belonging to each shape, optionally containing shape type strings
-    shape_type : str | None
-        metadata shape type string, or None if none was passed
-
-    Returns
-    -------
-    data : Array | List[Array]
-        list or array of vertices belonging to each shape
-    shape_type : List[str] | None
-        type of each shape in data, or None if none was passed
-    """
-    # Tuple for one shape or list of shapes with shape_type
-    if isinstance(data, Tuple):
-        shape_type = data[1]
-        data = data[0]
-    # List of (vertices, shape_type) tuples
-    elif len(data) != 0 and all(isinstance(datum, Tuple) for datum in data):
-        shape_type = [datum[1] for datum in data]
-        data = [datum[0] for datum in data]
-    return data, shape_type
-
-
-def get_default_shape_type(current_type):
-    # TODO: this should be removed
-    """Returns current shape type if current_type is one shape, else "polygon".
-
-    Parameters
-    ----------
-    current_type : list of str
-        list of current shape types
-
-    Returns
-    ----------
-    default_type : str
-        default shape type
-    """
-    first_type = current_type[0]
-    if all(shape_type == first_type for shape_type in current_type):
-        return first_type
-    return "rectangle"
-
-
-def get_shape_ndim(data):
-    # TODO: this should be removed
-    """Checks whether data is a list of the same type of shape, one shape, or
-    a list of different shapes and returns the dimensionality of the shape/s.
+def get_bounding_box_ndim(data):
+    """Checks whether data is a list of bounding boxes or one shape.
 
     Parameters
     ----------
     data : (N, ) list of array
-        List of shape data, where each element is an (N, D) array of the
-        N vertices of a shape in D dimensions.
+        List of bounding box data, where each element is an (N, D) array of the
+        N vertices of a bounding box in D dimensions.
 
     Returns
     -------
     ndim : int
-        Dimensionality of the shape/s in data
+        Dimensionality of the bounding box/es in data
     """
-    # list of all the same shapes
-    if np.array(data, dtype=object).ndim == 3:
+    # list of bounding boxes
+    if np.array(data).ndim == 3:
         ndim = np.array(data).shape[2]
     # just one shape
-    elif np.array(data[0]).ndim == 1:
+    else:
         ndim = np.array(data).shape[1]
     # list of different shapes
-    else:
-        ndim = np.array(data[0]).shape[1]
     return ndim
 
 
@@ -1102,3 +965,49 @@ def number_of_bounding_boxes(data):
         n_bounding_boxes = len(data)
 
     return n_bounding_boxes
+
+
+def validate_num_vertices(
+    data
+):
+    """Raises error if a bounding box in data has invalid number of vertices.
+
+    Checks whether all bounding boxes in data have a valid number of vertices.
+    Bounding boxes should have 2**D vertices.
+
+    One of valid_vertices or min_vertices must be passed to the
+    function.
+
+    Parameters
+    ----------
+    data : Array | Tuple(Array,str) | List[Array | Tuple(Array, str)] | Tuple(List[Array], str)
+        List of bounding box data, where each element is an (N, D) array of the
+        N vertices of a bounding box in D dimensions. Can be an 3-dimensional array
+        if each bounding box has the same number of vertices.
+    min_vertices : int or None
+        Minimum number of vertices for the shape type, by default None
+    valid_vertices : Tuple(int) or None
+        Valid number of vertices for the shape type in data, by default None
+
+    Raises
+    ------
+    ValueError
+        Raised if a shape is found with invalid number of vertices
+    """
+    n_bounding_boxes = number_of_bounding_boxes(data)
+    ndim = get_bounding_box_ndim(data)
+    valid_vertices = [2**ndim]
+    # single array of vertices
+    if n_bounding_boxes == 1 and np.array(data).ndim == 2:
+        # wrap in extra dimension so we can iterate through shape not vertices
+        data = [data]
+    for bounding_box in data:
+        if len(bounding_box) not in valid_vertices:
+            raise ValueError(
+                trans._(
+                    "{bounding_box} has invalid number of vertices: {shape_length}.",
+                    deferred=True,
+                    bounding_box=bounding_box,
+                    shape_length=len(bounding_box),
+                )
+            )

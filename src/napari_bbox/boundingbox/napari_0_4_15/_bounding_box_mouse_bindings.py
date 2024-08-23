@@ -1,17 +1,41 @@
-# A copy of napari.layers.shapes._shapes
+# A copy of napari.layers.shapes._shapes_mouse_bindings
+from __future__ import annotations
+
 from copy import copy
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from ._bounding_box_constants import Box, Mode
+from ..._helper_functions import layer_dims_displayed
 
+if TYPE_CHECKING:
+    from typing import List, Tuple
 
-def highlight(layer, event):
-    """Highlight hovered bounding boxes."""
+    import numpy.typing as npt
+    from vispy.app.canvas import MouseEvent
+
+def highlight(layer, event: MouseEvent) -> None:
+    """Render highlights of bounding boxes.
+
+    Highlight hovered bounding boxes.
+
+    Parameters
+    ----------
+    layer: BoundingBoxLayer
+        Bounding box layer
+    event: MouseEvent
+        A proxy read only wrapper around a vispy mouse event. Though not used here it is passed as argument by the
+        bounding box layer mouse move callbacks.
+
+    Returns
+    -------
+    None
+    """
     layer._set_highlight()
 
 
-def select(layer, event):
+def select(layer, event) -> None:
     """Select bounding boxes or vertices either in select mode.
 
     Once selected bounding boxes can be moved or resized, and vertices can be moved
@@ -92,8 +116,16 @@ def select(layer, event):
         layer._update_thumbnail()
 
 
-def add_bounding_box(layer, event):
-    """Add a rectangle."""
+def add_bounding_box(layer, event) -> None:
+    """Add a bounding box.
+
+    Parameters
+    ----------
+    layer: BoundingBoxLayer
+        Bounding box layer
+    event: MouseEvent
+        A proxy read only wrapper around a vispy mouse event.
+    """
     size = layer._vertex_size * layer.scale_factor / 4
     coordinates = layer.world_to_data(event.position)
     corner = np.array(coordinates).reshape(1, -1)
@@ -132,9 +164,9 @@ def _add_bounding_box(layer, event, data):
         min = data.min(0)
         max = data.max(0)
         size = max-min
-        visible_size = size[layer._dims_displayed]
-        max[layer._dims_displayed] = np.nan
-        min[layer._dims_displayed] = np.nan
+        visible_size = size[layer_dims_displayed(layer)]
+        max[layer_dims_displayed(layer)] = np.nan
+        min[layer_dims_displayed(layer)] = np.nan
         if layer.size_mode == "average":
             data[:] = np.where(data == max, coordinates+visible_size.mean()/2*layer.size_multiplier, data)
             data[:] = np.where(data == min, coordinates-visible_size.mean()/2*layer.size_multiplier, data)
@@ -148,21 +180,21 @@ def _add_bounding_box(layer, event, data):
     layer._finish_drawing()
 
 
-def _drag_selection_box(layer, coordinates):
+def _drag_selection_box(layer, coordinates: Tuple[float, ...]) -> None:
     """Drag a selection box.
 
     Parameters
     ----------
-    layer : .bounding_boxes.BoundingBoxLayer
-        Bounding Box layer.
-    coordinates : tuple
-        Position of mouse cursor in data coordinates.
+    layer : BoundingBoxLayer
+        Bounding box layer.
+    coordinates : Tuple[float, ...]
+        The current position of the cursor during the mouse move event in image data space.
     """
     # If something selected return
     if len(layer.selected_data) > 0:
         return
 
-    coord = [coordinates[i] for i in layer._dims_displayed]
+    coord = [coordinates[i] for i in layer_dims_displayed(layer)]
 
     # Create or extend a selection box
     layer._is_selecting = True
@@ -191,7 +223,7 @@ def _move(layer, coordinates):
     if layer._mode in (
         [Mode.SELECT, Mode.ADD_BOUNDING_BOX]
     ):
-        coord = [coordinates[i] for i in layer._dims_displayed]
+        coord = [coordinates[i] for i in layer_dims_displayed(layer)]
         layer._moving_coordinates = coordinates
         layer._is_moving = True
         if vertex is None:

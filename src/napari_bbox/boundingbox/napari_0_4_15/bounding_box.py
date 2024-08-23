@@ -6,14 +6,12 @@ import numpy as np
 
 from ._bounding_box_utils import (
     is_collinear,
-    path_to_mask,
-    poly_to_mask,
     triangulate_edge,
-    triangulate_face, find_bbox_corners, rectangle_to_box, find_corners,
+    triangulate_face, find_bbox_corners, rectangle_to_box, find_corners, poly_to_mask, path_to_mask,
 )
 from napari.utils.translations import trans
 
-LOG_DEBUG = True
+
 class BoundingBox(ABC):
     """Class for a single bounding box
     Parameters
@@ -21,7 +19,7 @@ class BoundingBox(ABC):
     data : (N, D) array
         Vertices specifying the bounding box.
     edge_width : float
-        thickness of  edges.
+        thickness of edges.
     z_index : int
         Specifier of z order priority. Bounding boxes with higher z order are displayed
         ontop of others.
@@ -45,6 +43,10 @@ class BoundingBox(ABC):
         Order that the dimensions are rendered in.
     ndisplay : int
         Number of dimensions to be displayed.
+    displayed : tuple
+        List of dimensions that are displayed.
+    not_displayed : tuple
+        List of dimensions that are not displayed.
     slice_key : (2, M) array
         Min and max values of the M non-displayed dimensions, useful for
         slicing multidimensional bounding boxes.
@@ -85,8 +87,7 @@ class BoundingBox(ABC):
         z_index=0,
         dims_order=None,
         ndisplay=2,
-    ):
-
+    ) -> None:
         self._dims_order = dims_order or list(range(2))
         self._ndisplay = ndisplay
         self.slice_key = None
@@ -103,7 +104,7 @@ class BoundingBox(ABC):
         self._use_face_vertices = False
         self.edge_width = edge_width
         self.z_index = z_index
-        self.name = 'bounding box'
+        self.name = ''
 
     @property
     def data(self):
@@ -285,13 +286,10 @@ class BoundingBox(ABC):
             self._edge_triangles = np.empty((0, 3), dtype=np.uint32)
 
         if face:
-            clean_data = np.array(
-                [
-                    p
-                    for i, p in enumerate(data)
-                    if i == 0 or not np.all(p == data[i - 1])
-                ]
+            idx = np.concatenate(
+                [[True], ~np.all(data[1:] == data[:-1], axis=-1)]
             )
+            clean_data = data[idx].copy()
 
             if not is_collinear(clean_data[:, -2:]):
                 if clean_data.shape[1] == 2:
@@ -351,6 +349,7 @@ class BoundingBox(ABC):
             length 2 array specifying shift of bounding boxes.
         """
         shift = np.array(shift)
+
         self._face_vertices = self._face_vertices + shift
         self._edge_vertices = self._edge_vertices + shift
         self._box = self._box + shift

@@ -4,10 +4,12 @@ from napari.utils.translations import trans
 from napari.utils.action_manager import action_manager
 from ._bounding_box_constants import Mode
 from .bounding_boxes import BoundingBoxLayer
-from packaging import version
 
-if version.parse(napari.__version__) <= version.parse("0.4.16"):
+from ..._utils import NAPARI_VERSION
+
+if NAPARI_VERSION <= "0.4.16":
     from napari.layers.utils.layer_utils import register_layer_action
+
     def register_bounding_box_action(description):
         return register_layer_action(BoundingBoxLayer, description)
 
@@ -15,6 +17,7 @@ if version.parse(napari.__version__) <= version.parse("0.4.16"):
         return register_bounding_box_action(description)
 else:
     from napari.layers.utils.layer_utils import register_layer_action, register_layer_attr_action
+
     def register_bounding_box_action(description, repeatable: bool = False):
         return register_layer_action(BoundingBoxLayer, description, repeatable)
 

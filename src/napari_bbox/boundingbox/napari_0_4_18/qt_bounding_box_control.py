@@ -1,4 +1,5 @@
 # A copy of napari._qt.layer_controls.qt_shapes_controls
+from ..napari_0_4_15.qt_bounding_box_control import *
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
     import napari.layers
 
 
-class QtBoundingBoxControls(QtLayerControls):
+class QtBoundingBoxControls(QtBoundingBoxControls):
     # TODO: review comments
     """Qt view and controls for the napari BoundingBoxLayer layer.
 
@@ -70,10 +71,8 @@ class QtBoundingBoxControls(QtLayerControls):
         Raise error if bounding box mode is not recognized.
     """
 
-    layer: 'napari.layers.Shapes'
-
     def __init__(self, layer) -> None:
-        super().__init__(layer)
+        QtLayerControls.__init__(self, layer)
 
         self.layer.events.mode.connect(self._on_mode_change)
         self.layer.events.size_mode.connect(self._on_size_mode_change)
@@ -315,72 +314,6 @@ class QtBoundingBoxControls(QtLayerControls):
                 trans._("Mode '{mode}'not recognized", mode=event.mode)
             )
 
-    def changeFaceColor(self, color: np.ndarray):
-        """Change face color of bounding boxes.
-
-        Parameters
-        ----------
-        color : np.ndarray
-            Face color for bounding boxes, color name or hex string.
-            Eg: 'white', 'red', 'blue', '#00ff00', etc.
-        """
-        with self.layer.events.current_face_color.blocker():
-            self.layer.current_face_color = color
-
-    def changeEdgeColor(self, color: np.ndarray):
-        """Change edge color of bounding boxes.
-
-        Parameters
-        ----------
-        color : np.ndarray
-            Edge color for bounding boxes, color name or hex string.
-            Eg: 'white', 'red', 'blue', '#00ff00', etc.
-        """
-        with self.layer.events.current_edge_color.blocker():
-            self.layer.current_edge_color = color
-
-    def changeTextColor(self, color: np.ndarray):
-        """Change edge color of bounding boxes.
-
-        Parameters
-        ----------
-        color : np.ndarray
-            Edge color for bounding boxes, color name or hex string.
-            Eg: 'white', 'red', 'blue', '#00ff00', etc.
-        """
-        with self.layer.text.events.color.blocker():
-            self.layer.text.color = color
-            self.layer.refresh()
-
-    def changeWidth(self, value):
-        """Change edge line width of bounding boxes on the layer model.
-
-        Parameters
-        ----------
-        value : float
-            Line width of bounding boxes.
-        """
-        self.layer.current_edge_width = float(value) / 2
-
-    def changeTextSize(self, value):
-        """Change edge line width of bounding boxes on the layer model.
-
-        Parameters
-        ----------
-        value : float
-            Line width of bounding boxes.
-        """
-        self.layer.text.size = float(value) / 2
-
-    def changeSizeMode(self, value=None):
-        self.layer.size_mode = value
-
-    def changeSizeMultiplier(self, value):
-        self.layer.size_multiplier = value
-
-    def changeSizeConst(self, value):
-        self.layer.size_constant = value
-
     def change_text_visibility(self, state):
         """Toggle the visibility of the text.
 
@@ -391,43 +324,13 @@ class QtBoundingBoxControls(QtLayerControls):
         """
         self.layer.text.visible = Qt.CheckState(state) == Qt.CheckState.Checked
 
-    def _on_text_visibility_change(self):
-        """Receive layer model text visibiltiy change change event and update checkbox."""
-        with self.layer.text.events.visible.blocker():
-            self.textDispCheckBox.setChecked(self.layer.text.visible)
-
-    def _on_edge_width_change(self):
-        """Receive layer model edge line width change event and update slider."""
-        with self.layer.events.edge_width.blocker():
-            value = self.layer.current_edge_width
-            value = np.clip(int(2 * value), 0, 40)
-            self.widthSlider.setValue(value)
-
-    def _on_current_edge_color_change(self):
-        """Receive layer model edge color change event and update color swatch."""
-        with qt_signals_blocked(self.edgeColorEdit):
-            self.edgeColorEdit.setColor(self.layer.current_edge_color)
-
-    def _on_current_face_color_change(self):
-        """Receive layer model face color change event and update color swatch."""
-        with qt_signals_blocked(self.faceColorEdit):
-            self.faceColorEdit.setColor(self.layer.current_face_color)
-
-    def _on_current_text_color_change(self, event=None):
-        """Receive layer model face color change event and update color swatch.
-
-        Parameters
-        ----------
-        event : napari.utils.event.Event, optional
-            The napari event that triggered this method, by default None.
-        """
-        with qt_signals_blocked(self.textColorEdit):
-            self.textColorEdit.setColor(self.layer.text.color.constant)
-
     def _on_ndisplay_changed(self):
         self.layer.editable = self.ndisplay == 2
 
     def _on_editable_or_visible_change(self):
+        if hasattr(super(), "_on_editable_or_visible_change"):
+            super()._on_editable_or_visible_change()
+            return
         """Receive layer model editable/visible change event & enable/disable buttons."""
         set_widgets_enabled_with_opacity(
             self,
@@ -435,32 +338,6 @@ class QtBoundingBoxControls(QtLayerControls):
             self.layer.editable and self.layer.visible,
         )
 
-    def _on_size_mode_change(self, event=None):
-        size_mode = self.layer.size_mode
-        self.bb_size_mode_combobox.setCurrentText(size_mode)
-        if size_mode == "average":
-            self.bb_size_const_label.setVisible(False)
-            self.bb_size_const_slider.setVisible(False)
-            self.bb_size_mult_label.setVisible(True)
-            self.bb_size_mult_slider.setVisible(True)
-        elif size_mode == "constant":
-            self.bb_size_const_label.setVisible(True)
-            self.bb_size_const_slider.setVisible(True)
-            self.bb_size_mult_label.setVisible(False)
-            self.bb_size_mult_slider.setVisible(False)
-
-    def _on_size_multiplier_change(self, event=None):
-        with self.layer.events.size_multiplier.blocker():
-            self.bb_size_mult_slider.setValue(self.layer.size_multiplier)
-
-    def _on_size_constant_change(self, event=None):
-        with self.layer.events.size_multiplier.blocker():
-            self.bb_size_const_slider.setValue(self.layer.size_constant)
-
-    def close(self):
-        """Disconnect events when widget is closing."""
-        disconnect_events(self.layer.text.events, self)
-        super().close()
 
 from napari._qt.layer_controls.qt_layer_controls_container import layer_to_controls
 def register_layer_control(layer_type):

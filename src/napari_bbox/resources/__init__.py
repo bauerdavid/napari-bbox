@@ -7,7 +7,7 @@ __location__ = os.path.realpath(
 
 from .._utils import NAPARI_VERSION
 
-if NAPARI_VERSION >= version.parse("0.4.17"):
+if NAPARI_VERSION >= "0.4.17":
     from napari.resources._icons import write_colorized_svgs, _theme_path
     from napari.settings import get_settings
 

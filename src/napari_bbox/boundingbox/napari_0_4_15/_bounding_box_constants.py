@@ -13,6 +13,7 @@ class Mode(StringEnum):
     resized.
 
     The ADD_BOUNDING_BOX mode allows for bounding boxes to be added.
+
     """
 
     PAN_ZOOM = auto()

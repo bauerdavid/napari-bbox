@@ -57,8 +57,7 @@ class BoundingBoxList:
         be rendered.
     """
 
-    def __init__(self, data=[], ndisplay=2):
-
+    def __init__(self, data=(), ndisplay=2) -> None:
         self._ndisplay = ndisplay
         self.bounding_boxes = []
         self._displayed = []
@@ -92,6 +91,7 @@ class BoundingBoxList:
     def ndisplay(self, ndisplay):
         if self.ndisplay == ndisplay:
             return
+
         self._ndisplay = ndisplay
         self._mesh.ndisplay = self.ndisplay
         self._vertices = np.empty((0, self.ndisplay))
@@ -732,16 +732,16 @@ class BoundingBoxList:
         else:
             return None
 
-    def to_masks(self, mask_shape=None, zoom_factor=1, offset=[0, 0]):
+    def to_masks(self, mask_shape=None, zoom_factor=1, offset=(0, 0)):
         # TODO: check if works
-        """Returns N binary masks, one for each bounding box, embedded in an array of
+        """Returns N binary masks, one for each bounding_box, embedded in an array of
         shape `mask_shape`.
 
         Parameters
         ----------
         mask_shape : np.ndarray | tuple | None
             2-tuple defining shape of mask to be generated. If non specified,
-            takes the max of all the vertiecs
+            takes the max of all the vertices
         zoom_factor : float
             Premultiplier applied to coordinates before generating mask. Used
             for generating as downsampled mask.
@@ -767,7 +767,7 @@ class BoundingBoxList:
 
         return masks
 
-    def to_labels(self, labels_shape=None, zoom_factor=1, offset=[0, 0]):
+    def to_labels(self, labels_shape=None, zoom_factor=1, offset=(0, 0)):
         # TODO: check if works
         """Returns a integer labels image, where each bounding box is embedded in an
         array of shape labels_shape with the value of the index + 1
@@ -778,7 +778,7 @@ class BoundingBoxList:
         ----------
         labels_shape : np.ndarray | tuple | None
             2-tuple defining shape of labels image to be generated. If non
-            specified, takes the max of all the vertiecs
+            specified, takes the max of all the vertices
         zoom_factor : float
             Premultiplier applied to coordinates before generating mask. Used
             for generating as downsampled mask.
@@ -841,7 +841,7 @@ class BoundingBoxList:
         if colors_shape is None:
             colors_shape = self.displayed_vertices.max(axis=0).astype(int)
 
-        colors = np.zeros(tuple(colors_shape) + (4,), dtype=float)
+        colors = np.zeros((*colors_shape, 4), dtype=float)
         colors[..., 3] = 1
 
         z_order = self._z_order[::-1]

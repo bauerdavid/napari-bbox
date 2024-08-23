@@ -6,10 +6,10 @@ from napari._qt.widgets.qt_color_swatch import QColorSwatchEdit
 from packaging import version
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QButtonGroup, QLabel, QHBoxLayout, QCheckBox, QComboBox
-from napari._qt.widgets._slider_compat import QDoubleSlider, QSlider
+from napari._qt.widgets._slider_compat import QSlider
 from napari._qt.layer_controls.qt_layer_controls_base import QtLayerControls
 import numpy as np
-from napari._qt.utils import qt_signals_blocked, disable_with_opacity
+from napari._qt.utils import qt_signals_blocked
 from napari._qt.widgets.qt_mode_buttons import QtModeRadioButton, QtModePushButton
 from napari.utils.events import disconnect_events
 from napari.utils.interactions import Shortcut
@@ -18,6 +18,7 @@ from superqt.sliders import QLabeledDoubleSlider
 
 from ..._utils import NAPARI_VERSION
 from ._bounding_box_constants import Mode
+
 
 class QtBoundingBoxControls(QtLayerControls):
     # TODO: review comments
@@ -62,7 +63,7 @@ class QtBoundingBoxControls(QtLayerControls):
         Raise error if bounding box mode is not recognized.
     """
 
-    def __init__(self, layer):
+    def __init__(self, layer) -> None:
         super().__init__(layer)
 
         self.layer.events.mode.connect(self._on_mode_change)
@@ -167,8 +168,7 @@ class QtBoundingBoxControls(QtLayerControls):
             checked=True,
         )
 
-
-        if NAPARI_VERSION <= version.parse("0.4.16"):
+        if NAPARI_VERSION <= "0.4.16":
             self.bounding_box_button = _radio_button(
                 layer,
                 'rectangle',
@@ -248,7 +248,7 @@ class QtBoundingBoxControls(QtLayerControls):
         )
         self._on_current_edge_color_change()
 
-        if version.parse(napari.__version__) < version.parse("0.4.17"):
+        if NAPARI_VERSION < "0.4.17":
             self.textColorEdit = QColorSwatchEdit(
                 initial_color=self.layer.text.color,
                 tooltip=trans._('click to set current text color'),
@@ -423,8 +423,8 @@ class QtBoundingBoxControls(QtLayerControls):
         else:
             self.layer.text.visible = False
 
-    def _on_text_visibility_change(self, event):
-        """Receive layer model text visibiltiy change change event and update checkbox.
+    def _on_text_visibility_change(self, event=None):
+        """Receive layer model text visibility change change event and update checkbox.
 
         Parameters
         ----------
@@ -478,7 +478,7 @@ class QtBoundingBoxControls(QtLayerControls):
             The napari event that triggered this method, by default None.
         """
         with qt_signals_blocked(self.textColorEdit):
-            if version.parse(napari.__version__) < version.parse("0.4.17"):
+            if NAPARI_VERSION < "0.4.17":
                 self.textColorEdit.setColor(self.layer.text.color)
             else:
                 self.textColorEdit.setColor(self.layer.text.color.constant)
@@ -491,6 +491,7 @@ class QtBoundingBoxControls(QtLayerControls):
         event : napari.utils.event.Event, optional
             The napari event that triggered this method, by default None.
         """
+        from napari._qt.utils import disable_with_opacity
         disable_with_opacity(
             self,
             [

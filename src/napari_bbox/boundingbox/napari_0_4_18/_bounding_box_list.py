@@ -1,5 +1,5 @@
 # A copy of napari.layers.shapes._shape_list
-from ..napari_0_4_15._bounding_box_list import *
+from ..napari_0_4_15._bounding_box_list import BoundingBoxList
 from collections.abc import Iterable
 from typing import Sequence, Union
 

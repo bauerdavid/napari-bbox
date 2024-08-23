@@ -1,11 +1,9 @@
 # A copy of napari._vispy.layers.shapes
 import numpy as np
-import vispy
 from napari._vispy.layers.base import VispyBaseLayer
 from napari._vispy.utils.text import update_text
 from napari.utils.events import disconnect_events
 from napari.settings import get_settings
-from packaging import version
 from vispy.scene import Compound, Mesh, Line, Markers, Text
 
 from ..._utils import NAPARI_VERSION

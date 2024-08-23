@@ -1,5 +1,5 @@
 # A copy of napari.layers.shapes._shapes_models.shape
-from ..napari_0_4_15.bounding_box import *
+from ..napari_0_4_15.bounding_box import BoundingBox
 
 import numpy as np
 

@@ -1,15 +1,28 @@
 # A copy of napari.layers.shapes._shapes_utils
 from __future__ import annotations
-from ..napari_0_4_15._bounding_box_utils import *
+from ..napari_0_4_15._bounding_box_utils import (
+    orientation,
+    is_collinear,
+    create_box,
+    rectangle_to_box,
+    find_corners,
+    find_bbox_corners,
+    generate_tube_meshes,
+    triangulate_edge,
+    path_to_mask,
+    poly_to_mask,
+    grid_points_in_poly,
+    points_in_poly,
+    get_bounding_box_ndim,
+    number_of_bounding_boxes,
+    validate_num_vertices
+)
 
-from typing import TYPE_CHECKING, Tuple
-import itertools
+from typing import TYPE_CHECKING
 import numpy as np
 from vispy.geometry import PolygonData
-from vispy.visuals.tube import _frenet_frames
 
 from napari.layers.utils.layer_utils import segment_normal
-from napari.utils.translations import trans
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -223,63 +236,3 @@ def generate_2D_edge_meshes(path, closed=False, limit=3, bevel=False):
     triangles[flip_idx] = np.flip(triangles[flip_idx], axis=-1)
 
     return centers, offsets, triangles
-
-
-def number_of_bounding_boxes(data):
-    """Determine number of bounding boxes in the data.
-
-    Parameters
-    ----------
-    data : list or np.ndarray
-        Can either be no bounding boxes, if empty, a
-        single bounding box or a list of bounding boxes.
-
-    Returns
-    -------
-    n_bounding_boxes : int
-        Number of new bounding box
-    """
-    if len(data) == 0:
-        # If no new shapes
-        n_bounding_boxes = 0
-    elif np.array(data).ndim == 2:
-        # If a single array for a shape
-        n_bounding_boxes = 1
-    else:
-        n_bounding_boxes = len(data)
-
-    return n_bounding_boxes
-
-
-def perpendicular_distance(
-    point: npt.NDArray, line_start: npt.NDArray, line_end: npt.NDArray
-) -> float:
-    """Calculate the perpendicular distance of a point to a given euclidean line.
-
-    Calculates the shortest distance of a point to a euclidean line defined by a line_start point and a line_end point.
-    Works up to any dimension.
-
-    Parameters
-    ---------
-    point : np.ndarray
-        A point defined by a numpy array of shape (viewer.ndims,)  which is part of a polygon shape.
-    line_start : np.ndarray
-        A point defined by a numpy array of shape (viewer.ndims,)  used to define the starting point of a line.
-    line_end : np.ndarray
-        A point defined by a numpy array of shape (viewer.ndims,)  used to define the end point of a line.
-
-    Returns
-    -------
-    float
-        A float number representing the distance of point to a euclidean line defined by line_start and line_end.
-    """
-
-    if np.array_equal(line_start, line_end):
-        return np.linalg.norm(point - line_start)
-
-    t = np.dot(point - line_end, line_start - line_end) / np.dot(
-        line_start - line_end, line_start - line_end
-    )
-    return np.linalg.norm(t * (line_start - line_end) + line_end - point)
-
-

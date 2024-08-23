@@ -1,5 +1,5 @@
 # A copy of napari.layers.shapes._shapes_models.shape
-from abc import ABC, abstractmethod
+from abc import ABC
 from copy import copy
 
 import numpy as np

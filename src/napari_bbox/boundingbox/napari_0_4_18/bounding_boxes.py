@@ -1,14 +1,8 @@
 # A copy of napari.layers.shapes.shapes
-import warnings
-from contextlib import contextmanager
 from copy import copy, deepcopy
-from itertools import cycle
-from typing import Any, Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
-import pandas as pd
-from packaging import version
-from vispy.color import get_color_names
 
 from napari.layers.base import Layer, no_op
 from napari.layers.base._base_constants import ActionType
@@ -31,20 +25,16 @@ from ._bounding_box_mouse_bindings import (
     select,
 )
 from ._bounding_box_utils import (
-    create_box,
     number_of_bounding_boxes,
-    validate_num_vertices,
 )
 from ..napari_0_4_15.bounding_boxes import BoundingBoxLayer
 from ..._helper_functions import layer_slice_indices, layer_dims_order, layer_ndisplay
 from ..._utils import NAPARI_VERSION
 from napari.layers.utils.color_manager_utils import (
-    guess_continuous,
     map_property,
 )
 from napari.layers.utils.color_transformations import (
     normalize_and_broadcast_colors,
-    transform_color_cycle,
     transform_color_with_defaults,
 )
 from napari.layers.utils.interactivity_utils import (
@@ -52,12 +42,8 @@ from napari.layers.utils.interactivity_utils import (
 )
 from napari.layers.utils.layer_utils import _FeatureTable, _unique_element
 from napari.layers.utils.text_manager import TextManager
-from napari.settings import get_settings
-from napari.utils.colormaps import Colormap, ValidColormapArg, ensure_colormap
 from napari.utils.colormaps.colormap_utils import ColorType
 from napari.utils.colormaps.standardize_color import (
-    hex_to_name,
-    rgb_to_hex,
     transform_color,
 )
 from napari.utils.events import Event

@@ -10,9 +10,8 @@ from ._bounding_box_constants import Box, Mode
 from ..._helper_functions import layer_dims_displayed
 
 if TYPE_CHECKING:
-    from typing import List, Tuple
+    from typing import Tuple
 
-    import numpy.typing as npt
     from vispy.app.canvas import MouseEvent
 
 def highlight(layer, event: MouseEvent) -> None:

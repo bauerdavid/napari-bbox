@@ -4,14 +4,13 @@ from contextlib import contextmanager
 from copy import deepcopy, copy
 from itertools import cycle
 from typing import Dict, Any, Optional, Union, Tuple
-from packaging import version
 import napari.layers
 import pandas as pd
 from napari.layers import Layer
 from napari.layers.utils.color_manager_utils import map_property, guess_continuous
 from napari.layers.utils.color_transformations import transform_color_with_defaults, ColorType, \
     normalize_and_broadcast_colors, transform_color_cycle
-from napari.layers.utils.layer_utils import dataframe_to_properties, _FeatureTable
+from napari.layers.utils.layer_utils import _FeatureTable
 from napari.layers.utils.text_manager import TextManager
 from napari.utils import Colormap
 from napari.utils.colormaps import ensure_colormap, ValidColormapArg
@@ -26,7 +25,6 @@ from ._bounding_box_constants import ColorMode, BACKSPACE, Box, SizeMode
 from ._bounding_box_list import BoundingBoxList
 from .bounding_box import BoundingBox
 from ._bounding_box_mouse_bindings import select, highlight, add_bounding_box
-# from ._bounding_boxes_key_bindings import *
 from .qt_bounding_box_control import *
 from .vispy_bounding_box_layer import *
 from ._bounding_box_utils import create_box, number_of_bounding_boxes, validate_num_vertices

@@ -1,13 +1,11 @@
 # A copy of napari._vispy.layers.shapes
-from ..napari_0_4_15.vispy_bounding_box_layer import *
+from ..napari_0_4_15.vispy_bounding_box_layer import VispyBoundingBoxLayer
 import numpy as np
 
 from napari._vispy.layers.base import VispyBaseLayer
 from napari._vispy.utils.gl import BLENDING_MODES
-from napari._vispy.utils.text import update_text
 from .vispy_bounding_box_visual import BoundingBoxVisual
 from napari.settings import get_settings
-from napari.utils.events import disconnect_events
 
 from ..._helper_functions import layer_ndisplay
 

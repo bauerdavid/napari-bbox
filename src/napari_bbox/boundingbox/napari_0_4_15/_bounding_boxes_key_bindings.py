@@ -1,5 +1,4 @@
 # A copy of napari.layers.shapes._shapes_key_bindings
-import napari
 from napari.utils.translations import trans
 from napari.utils.action_manager import action_manager
 from ._bounding_box_constants import Mode

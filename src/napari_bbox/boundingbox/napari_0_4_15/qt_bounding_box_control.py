@@ -3,7 +3,6 @@ from typing import Iterable
 
 import napari
 from napari._qt.widgets.qt_color_swatch import QColorSwatchEdit
-from packaging import version
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QButtonGroup, QLabel, QHBoxLayout, QCheckBox, QComboBox
 from napari._qt.widgets._slider_compat import QSlider

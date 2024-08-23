@@ -1,5 +1,5 @@
 # A copy of napari._vispy.layers.shapes
-from ..napari_0_4_15.vispy_bounding_box_layer import *
+from ..napari_0_4_15.vispy_bounding_box_layer import VispyBoundingBoxLayer
 import numpy as np
 
 from napari._vispy.layers.base import VispyBaseLayer

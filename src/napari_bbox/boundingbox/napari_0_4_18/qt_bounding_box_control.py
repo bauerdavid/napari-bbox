@@ -1,17 +1,14 @@
 # A copy of napari._qt.layer_controls.qt_shapes_controls
-from ..napari_0_4_15.qt_bounding_box_control import *
+from ..napari_0_4_15.qt_bounding_box_control import QtBoundingBoxControls
 from collections.abc import Iterable
-from typing import TYPE_CHECKING
 
 import numpy as np
 from napari._qt.qt_resources import get_current_stylesheet
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QButtonGroup, QCheckBox, QHBoxLayout, QLabel, QComboBox
-from superqt import QDoubleSlider
 
 from napari._qt.layer_controls.qt_layer_controls_base import QtLayerControls
 from napari._qt.utils import (
-    qt_signals_blocked,
     set_widgets_enabled_with_opacity,
 )
 from napari._qt.widgets._slider_compat import QSlider
@@ -22,14 +19,9 @@ from napari._qt.widgets.qt_mode_buttons import (
 )
 from ...resources import cube_style_path
 from ._bounding_box_constants import Mode
-from napari.utils.action_manager import action_manager
-from napari.utils.events import disconnect_events
 from napari.utils.interactions import Shortcut
 from napari.utils.translations import trans
 from superqt.sliders import QLabeledDoubleSlider
-
-if TYPE_CHECKING:
-    import napari.layers
 
 
 class QtBoundingBoxControls(QtBoundingBoxControls):

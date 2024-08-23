@@ -1,6 +1,11 @@
 # A copy of napari.layers.shapes._shapes_mouse_bindings
 from __future__ import annotations
-from ..napari_0_4_15._bounding_box_mouse_bindings import *
+from ..napari_0_4_15._bounding_box_mouse_bindings import (
+    highlight,
+    add_bounding_box,
+    _drag_selection_box,
+    _move
+)
 from ..napari_0_4_15._bounding_box_mouse_bindings import _drag_selection_box
 
 from copy import copy
@@ -9,7 +14,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from napari.layers.base._base_constants import ActionType
-from packaging import version
 
 from ._bounding_box_constants import Box, Mode
 from ..._utils import NAPARI_VERSION

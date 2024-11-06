@@ -211,7 +211,7 @@ class QtBoundingBoxControls(QtLayerControls):
         bb_size_mode_combobox = QComboBox()
         bb_size_mode_combobox.addItem("average")
         bb_size_mode_combobox.addItem("constant")
-        bb_size_mode_combobox.activated[str].connect(self.changeSizeMode)
+        bb_size_mode_combobox.activated.connect(self.changeSizeMode)
         self.bb_size_mode_combobox = bb_size_mode_combobox
 
         bb_size_mult_slider = QLabeledDoubleSlider(Qt.Horizontal, parent=self)
@@ -401,7 +401,8 @@ class QtBoundingBoxControls(QtLayerControls):
         self.layer.text.size = float(value) / 2
 
     def changeSizeMode(self, value=None):
-        self.layer.size_mode = value
+        mode = self.bb_size_mode_combobox.itemText(value)
+        self.layer.size_mode = mode
 
     def changeSizeMultiplier(self, value):
         self.layer.size_multiplier = value

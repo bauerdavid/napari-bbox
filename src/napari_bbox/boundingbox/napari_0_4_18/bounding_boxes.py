@@ -28,7 +28,8 @@ from ._bounding_box_utils import (
     number_of_bounding_boxes,
 )
 from ..napari_0_4_15.bounding_boxes import BoundingBoxLayer
-from ..._helper_functions import layer_slice_indices, layer_dims_order, layer_ndisplay
+from ..._helper_functions import layer_slice_indices, layer_dims_order, layer_ndisplay, layer_dims_not_displayed, \
+    layer_dims_displayed
 from ..._utils import NAPARI_VERSION
 from napari.layers.utils.color_manager_utils import (
     map_property,
@@ -403,7 +404,7 @@ class BoundingBoxLayer(BoundingBoxLayer):
         self._allow_thumbnail_update = True
 
         self._display_order_stored = []
-        self._ndisplay_stored = self._slice_input.ndisplay
+        self._ndisplay_stored = layer_ndisplay(self)
 
         self._feature_table = _FeatureTable.from_layer(
             features=features,
@@ -421,9 +422,9 @@ class BoundingBoxLayer(BoundingBoxLayer):
         else:
             self._current_edge_width = 1
 
-        self._data_view = BoundingBoxList(ndisplay=self._slice_input.ndisplay)
+        self._data_view = BoundingBoxList(ndisplay=layer_ndisplay(self))
         self._data_view.slice_key = np.array(layer_slice_indices(self))[
-            self._slice_input.not_displayed
+            layer_dims_not_displayed(self)
         ]
 
         self._value = (None, None)
@@ -590,9 +591,9 @@ class BoundingBoxLayer(BoundingBoxLayer):
                 )
             )
 
-        self._data_view = BoundingBoxList(ndisplay=self._slice_input.ndisplay)
-        self._data_view.slice_key = np.array(self._slice_indices)[
-            self._slice_input.not_displayed
+        self._data_view = BoundingBoxList(ndisplay=layer_ndisplay(self))
+        self._data_view.slice_key = np.array(layer_slice_indices(self))[
+            layer_dims_not_displayed(self)
         ]
         self.add(
             data,
@@ -957,8 +958,8 @@ class BoundingBoxLayer(BoundingBoxLayer):
                     d,
                     edge_width=ew,
                     z_index=z,
-                    dims_order=self._slice_input.order,
-                    ndisplay=self._slice_input.ndisplay,
+                    dims_order=layer_dims_order(self),
+                    ndisplay=layer_ndisplay(self),
                 ),
                 ec,
                 fc,
@@ -1005,13 +1006,13 @@ class BoundingBoxLayer(BoundingBoxLayer):
             # corresponds to the top left corner of the thumbnail
             de = self._extent_data
             offset = (
-                np.array([de[0, d] for d in self._slice_input.displayed]) + 0.5
+                np.array([de[0, d] for d in layer_dims_displayed(self)]) + 0.5
             )
             # calculate range of values for the vertices and pad with 1
             # padding ensures the entire bounding box can be represented in the thumbnail
             # without getting clipped
             bounding_box = np.ceil(
-                [de[1, d] - de[0, d] + 1 for d in self._slice_input.displayed]
+                [de[1, d] - de[0, d] + 1 for d in layer_dims_displayed(self)]
             ).astype(int)
             zoom_factor = np.divide(
                 self._thumbnail_shape[:2], bounding_box[-2:]
@@ -1238,7 +1239,7 @@ class BoundingBoxLayer(BoundingBoxLayer):
                 'edge_color': deepcopy(self._data_view._edge_color[index]),
                 'face_color': deepcopy(self._data_view._face_color[index]),
                 'features': deepcopy(self.features.iloc[index]),
-                'indices': self._slice_indices,
+                'indices': layer_slice_indices(self),
                 'text': self.text._copy(index),
             }
         else:

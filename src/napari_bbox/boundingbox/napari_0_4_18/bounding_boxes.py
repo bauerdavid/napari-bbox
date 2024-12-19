@@ -591,7 +591,7 @@ class BoundingBoxLayer(BoundingBoxLayer):
             )
 
         self._data_view = BoundingBoxList(ndisplay=self._slice_input.ndisplay)
-        self._data_view.slice_key = np.array(self._slice_indices)[
+        self._data_view.slice_key = np.array(layer_slice_indices(self))[
             self._slice_input.not_displayed
         ]
         self.add(
@@ -1238,7 +1238,7 @@ class BoundingBoxLayer(BoundingBoxLayer):
                 'edge_color': deepcopy(self._data_view._edge_color[index]),
                 'face_color': deepcopy(self._data_view._face_color[index]),
                 'features': deepcopy(self.features.iloc[index]),
-                'indices': self._slice_indices,
+                'indices': layer_slice_indices(self),
                 'text': self.text._copy(index),
             }
         else:
@@ -1250,7 +1250,7 @@ class BoundingBoxLayer(BoundingBoxLayer):
         if len(self._clipboard.keys()) > 0:
             # Calculate offset based on dimension shifts
             offset = [
-                self._slice_indices[i] - self._clipboard['indices'][i]
+                layer_slice_indices(self)[i] - self._clipboard['indices'][i]
                 for i in layer_dims_not_displayed(self)
             ]
 

@@ -178,12 +178,12 @@ class BoundingBox(ABC):
         
     def _update_slice_key(self):
         data_not_displayed = self.data[:, self.dims_not_displayed]
-        self.slice_key = np.round(
+        self.slice_key = np.array(
             [
                 np.min(data_not_displayed, axis=0),
                 np.max(data_not_displayed, axis=0),
             ]
-        ).astype('int')        
+        )       
 
     @property
     def ndisplay(self):

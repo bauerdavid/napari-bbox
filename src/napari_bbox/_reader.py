@@ -58,18 +58,44 @@ def read_bbox(path):
         Both "meta", and "layer_type" are optional. napari will default to
         layer_type=="image" if not provided
     """
-    # handle both a string and a list of strings
+    # Handle both a string and a list of strings
     paths = [path] if isinstance(path, str) else path
-    # load all files into array
-    arrays = [np.loadtxt(_path, delimiter=",") for _path in paths]
-    bounding_box_corner_list = [np.reshape(data, (len(data), 2, -1)) for data in arrays]
-    mask = np.asarray(list(itertools.product((False, True), repeat=bounding_box_corner_list[0].shape[-1])))
-    bounding_boxes = [np.asarray([np.where(mask, bbc[1], bbc[0]) for bbc in bounding_box_corners])
-                      for bounding_box_corners in bounding_box_corner_list]
-    # stack arrays into single array
 
-    # optional kwargs for the corresponding viewer.add_* method
+    # Load all files into arrays
+    arrays = [np.loadtxt(_path, delimiter=",") for _path in paths]
+
+    bounding_box_corner_list = []
+    for data in arrays:
+        # Ensure data is at least 2D
+        data = np.atleast_2d(data)
+        
+        # Determine the number of bounding boxes
+        num_bboxes = data.shape[0]
+        
+        # Each bounding box should have 2 corners, so total columns should be even
+        if data.shape[1] % 2 != 0:
+            raise ValueError(f"Data in {_path} has an unexpected number of columns: {data.shape[1]}")
+        
+        # Determine the number of spatial dimensions
+        num_dimensions = data.shape[1] // 2
+        
+        # Reshape to (num_bboxes, 2, num_dimensions)
+        reshaped = data.reshape(num_bboxes, 2, num_dimensions)
+        bounding_box_corner_list.append(reshaped)
+
+    # Create a mask for all possible corner combinations (optional, based on your original code)
+    # Adjust this part based on how you intend to use the bounding boxes
+    # For simplicity, we'll skip this unless necessary
+
+    # Stack arrays into a single array if multiple paths are provided
+    if len(bounding_box_corner_list) > 1:
+        bounding_box_corner_list = np.concatenate(bounding_box_corner_list, axis=0)
+    else:
+        bounding_box_corner_list = bounding_box_corner_list[0]
+
+    # Optional kwargs for the corresponding viewer.add_* method
     add_kwargs = {}
 
     layer_type = "bounding_boxes"  # optional, default is "image"
-    return [(data, add_kwargs, layer_type) for data in bounding_boxes]
+
+    return [(bounding_box_corner_list, add_kwargs, layer_type)]

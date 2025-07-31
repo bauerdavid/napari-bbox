@@ -11,7 +11,6 @@ from napari._qt.layer_controls.qt_layer_controls_base import QtLayerControls
 from napari._qt.utils import (
     set_widgets_enabled_with_opacity,
 )
-from napari._qt.widgets._slider_compat import QSlider
 from napari._qt.widgets.qt_color_swatch import QColorSwatchEdit
 from napari._qt.widgets.qt_mode_buttons import (
     QtModePushButton,
@@ -21,7 +20,7 @@ from ...resources import cube_style_path
 from ._bounding_box_constants import Mode
 from napari.utils.interactions import Shortcut
 from napari.utils.translations import trans
-from superqt.sliders import QLabeledDoubleSlider
+from superqt.sliders import QLabeledDoubleSlider, QLabeledSlider as QSlider
 
 
 class QtBoundingBoxControls(QtBoundingBoxControls):

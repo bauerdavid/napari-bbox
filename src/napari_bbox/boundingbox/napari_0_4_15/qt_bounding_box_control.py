@@ -5,7 +5,6 @@ import napari
 from napari._qt.widgets.qt_color_swatch import QColorSwatchEdit
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QButtonGroup, QLabel, QHBoxLayout, QCheckBox, QComboBox
-from napari._qt.widgets._slider_compat import QSlider
 from napari._qt.layer_controls.qt_layer_controls_base import QtLayerControls
 import numpy as np
 from napari._qt.utils import qt_signals_blocked
@@ -13,7 +12,7 @@ from napari._qt.widgets.qt_mode_buttons import QtModeRadioButton, QtModePushButt
 from napari.utils.events import disconnect_events
 from napari.utils.interactions import Shortcut
 from napari.utils.translations import trans
-from superqt.sliders import QLabeledDoubleSlider
+from superqt.sliders import QLabeledDoubleSlider, QLabeledSlider as QSlider
 
 from ..._utils import NAPARI_VERSION
 from ._bounding_box_constants import Mode

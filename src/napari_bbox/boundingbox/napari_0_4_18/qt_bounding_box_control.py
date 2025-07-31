@@ -20,7 +20,7 @@ from ...resources import cube_style_path
 from ._bounding_box_constants import Mode
 from napari.utils.interactions import Shortcut
 from napari.utils.translations import trans
-from superqt.sliders import QLabeledDoubleSlider, QLabeledSlider as QSlider
+from superqt.sliders import QLabeledDoubleSlider, QLabeledSlider
 
 
 class QtBoundingBoxControls(QtBoundingBoxControls):
@@ -53,7 +53,7 @@ class QtBoundingBoxControls(QtBoundingBoxControls):
         Button to select bounding boxes.
     textDispCheckBox : qtpy.QtWidgets.QCheckBox
         Checkbox to control if text should be displayed
-    widthSlider : qtpy.QtWidgets.QSlider
+    widthSlider : superqt.QLabeledSlider
         Slider controlling line edge width of bounding boxes.
 
     Raises
@@ -80,7 +80,7 @@ class QtBoundingBoxControls(QtBoundingBoxControls):
         self.layer.events.visible.connect(self._on_editable_or_visible_change)
         self.layer.text.events.visible.connect(self._on_text_visibility_change)
 
-        sld = QSlider(Qt.Orientation.Horizontal)
+        sld = QLabeledSlider(Qt.Orientation.Horizontal)
         sld.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         sld.setMinimum(0)
         sld.setMaximum(40)
@@ -94,7 +94,7 @@ class QtBoundingBoxControls(QtBoundingBoxControls):
         sld.valueChanged.connect(self.changeWidth)
         self.widthSlider = sld
 
-        sld = QSlider(Qt.Orientation.Horizontal)
+        sld = QLabeledSlider(Qt.Orientation.Horizontal)
         sld.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         sld.setMinimum(2)
         sld.setMaximum(200)

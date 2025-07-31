@@ -5,6 +5,7 @@ import napari
 from napari._qt.widgets.qt_color_swatch import QColorSwatchEdit
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QButtonGroup, QLabel, QHBoxLayout, QCheckBox, QComboBox
+
 from napari._qt.layer_controls.qt_layer_controls_base import QtLayerControls
 import numpy as np
 from napari._qt.utils import qt_signals_blocked
@@ -12,7 +13,7 @@ from napari._qt.widgets.qt_mode_buttons import QtModeRadioButton, QtModePushButt
 from napari.utils.events import disconnect_events
 from napari.utils.interactions import Shortcut
 from napari.utils.translations import trans
-from superqt.sliders import QLabeledDoubleSlider, QLabeledSlider as QSlider
+from superqt.sliders import QLabeledDoubleSlider, QLabeledSlider
 
 from ..._utils import NAPARI_VERSION
 from ._bounding_box_constants import Mode
@@ -52,7 +53,7 @@ class QtBoundingBoxControls(QtLayerControls):
         Button to add rectangles to bounding box layer.
     select_button : qtpy.QtWidgets.QtModeRadioButton
         Button to select bounding boxes.
-    widthSlider : qtpy.QtWidgets.QSlider
+    widthSlider : superqt.QLabeledSlider
         Slider controlling line edge width of bounding boxes.
 
     Raises
@@ -78,7 +79,7 @@ class QtBoundingBoxControls(QtLayerControls):
         self.layer.events.editable.connect(self._on_editable_change)
         self.layer.text.events.visible.connect(self._on_text_visibility_change)
 
-        sld = QSlider(Qt.Horizontal)
+        sld = QLabeledSlider(Qt.Horizontal)
         sld.setFocusPolicy(Qt.NoFocus)
         sld.setMinimum(0)
         sld.setMaximum(40)
@@ -92,7 +93,7 @@ class QtBoundingBoxControls(QtLayerControls):
         sld.valueChanged.connect(self.changeWidth)
         self.widthSlider = sld
 
-        sld = QSlider(Qt.Horizontal)
+        sld = QLabeledSlider(Qt.Horizontal)
         sld.setFocusPolicy(Qt.NoFocus)
         sld.setMinimum(2)
         sld.setMaximum(200)

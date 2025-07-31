@@ -17,10 +17,13 @@ from napari import Viewer
 
 if NAPARI_VERSION >= "0.4.18":
 
-    def revert_last_dim_point_cb(viewer):
-        def revert_last_dim_point(e):
-            viewer.dims.set_point(range(len(e.source._last_dim_point)), e.source._last_dim_point)
-            viewer.events.layers_change()
+    def revert_last_dim_point_cb(viewer: Viewer):
+        def revert_last_dim_point(layer, event):
+            yield
+            while event.type == "mouse_move":
+                yield
+            viewer.dims.set_point(range(len(layer._last_dim_point)), layer._last_dim_point)
+            viewer.layers.events.reordered()  # force updating extent
         return revert_last_dim_point
 
     def store_last_dim_point_cb(layer):
@@ -33,7 +36,7 @@ if NAPARI_VERSION >= "0.4.18":
         layer = BoundingBoxLayer(*args, **kwargs)
         layer._store_last_dim_point(self.dims.point)
         store_cb = store_last_dim_point_cb(layer)
-        layer.events.data.connect(revert_last_dim_point_cb(self))
+        layer.mouse_drag_callbacks.append(revert_last_dim_point_cb(self))
         self.dims.events.current_step.connect(store_cb)
 
         def disconnect_all(e):

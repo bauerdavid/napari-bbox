@@ -56,6 +56,10 @@ else:
 
 
 Viewer.add_bounding_boxes = add_bounding_boxes
+# Alias to match layer_type "boundingboxlayer" used by napari's layer registry
+# in newer napari versions.
+if NAPARI_VERSION >= "0.6.0":
+    Viewer.add_boundingboxlayer = add_bounding_boxes
 
 from enum import Enum
 

@@ -18,7 +18,7 @@ from napari._qt.widgets.qt_mode_buttons import (
     QtModeRadioButton,
 )
 from ...resources import cube_style_path
-from ._bounding_box_constants import Mode
+from ..napari_0_4_15._bounding_box_constants import Mode
 from napari.utils.interactions import Shortcut
 from napari.utils.translations import trans
 from superqt.sliders import QLabeledDoubleSlider, QLabeledSlider

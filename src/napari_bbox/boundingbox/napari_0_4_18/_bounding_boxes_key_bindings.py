@@ -7,7 +7,7 @@ from ._bounding_box_mouse_bindings import (
 from napari.utils.action_manager import action_manager
 
 from napari.utils.translations import trans
-from ._bounding_box_constants import Box, Mode
+from ..napari_0_4_15._bounding_box_constants import Box, Mode
 from .bounding_boxes import BoundingBoxLayer
 from packaging import version
 

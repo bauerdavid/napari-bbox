@@ -15,7 +15,7 @@ import numpy as np
 
 from napari.layers.base._base_constants import ActionType
 
-from ._bounding_box_constants import Box, Mode
+from ..napari_0_4_15._bounding_box_constants import Box, Mode
 from ..._utils import NAPARI_VERSION
 
 if TYPE_CHECKING:

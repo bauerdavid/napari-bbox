@@ -13,7 +13,7 @@ from napari.layers.base._base_mouse_bindings import (
 
 from .bounding_box import BoundingBox
 from ._bounding_box_list import BoundingBoxList
-from ._bounding_box_constants import (
+from ..napari_0_4_15._bounding_box_constants import (
     Box,
     ColorMode,
     Mode,
@@ -28,7 +28,7 @@ from ._bounding_box_utils import (
     number_of_bounding_boxes,
 )
 from ..napari_0_4_15.bounding_boxes import BoundingBoxLayer
-from ..._helper_functions import layer_slice_indices, layer_dims_order, layer_ndisplay
+from ..._helper_functions import layer_slice_indices, layer_dims_order, layer_ndisplay, layer_dims_not_displayed
 from ..._utils import NAPARI_VERSION
 from napari.layers.utils.color_manager_utils import (
     map_property,
@@ -53,6 +53,19 @@ from napari.utils.translations import trans
 
 
 DEFAULT_COLOR_CYCLE = np.array([[1, 0, 1, 1], [0, 1, 0, 1]])
+try:
+    from napari.layers.base import _LayerSlicingState
+    from napari.types import LayerDataType
+
+    class _BoundingBoxSlicingState(_LayerSlicingState):
+        layer: BoundingBoxLayer
+
+        def _set_view_slice(self):
+            self.layer._set_view_slice()
+except ImportError:
+    class _BoundingBoxSlicingState:
+        def __init__(self, *args, **kwargs):
+            ...
 
 
 class BoundingBoxLayer(BoundingBoxLayer):
@@ -1278,3 +1291,8 @@ class BoundingBoxLayer(BoundingBoxLayer):
 
     def _store_last_dim_point(self, last_dim_point):
         self._last_dim_point = last_dim_point
+
+    def _get_layer_slicing_state(
+        self, data: "LayerDataType", cache: bool
+    ) -> _BoundingBoxSlicingState:
+        return _BoundingBoxSlicingState(layer=self, data=data, cache=cache)

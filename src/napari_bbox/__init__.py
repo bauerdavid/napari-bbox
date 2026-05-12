@@ -15,6 +15,8 @@ from ._widget import BoundingBoxCreator
 
 from napari import Viewer
 
+# [TODO] I suspect revert_last_dim_point_cb optimisation may still be necessary
+# dragging 3D boxes outside the initial range of the layer (mostly in Z)?
 if NAPARI_VERSION >= "0.7.0":
     def add_bounding_boxes(self, *args, **kwargs):
             print(f"[add_bounding_boxes] working on {NAPARI_VERSION}")

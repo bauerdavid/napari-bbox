@@ -9,14 +9,14 @@ from typing import Literal, TypedDict
 import numpy as np
 import numpy.typing as npt
 
-from ._mesh import Mesh # [NOTE] needs to be bounding box specific 
+from ._mesh import Mesh 
 
 #from napari.layers.shapes._shapes_constants import ShapeType, shape_classes
 #from napari.layers.shapes._shapes_models import Line, Path, Shape
 
-from .bounding_box import BoundingBox # [NOTE] BoundingBox replaces Shape but probably needs updated
+from .bounding_box import BoundingBox 
 
-from napari.layers.shapes._shapes_utils import triangles_intersect_box # [NOTE] needs to be bounding box specific 
+from napari.layers.shapes._shapes_utils import triangles_intersect_box
 
 from napari.layers.shapes.shape_types import (
     CoordinateArray,
@@ -121,7 +121,7 @@ def _ensure_color_arrays(bounding_boxes, face_colors=None, edge_colors=None):
     else:
         face_colors = np.asarray(face_colors, dtype=np.float32)
 
-    if edge_colors is None: # [NOTE] change to a different default for bounding box edges
+    if edge_colors is None:
         # default edge color is green
         edge_colors = np.tile(
             np.array([0, 1, 0, 1], dtype=np.float32), (len(bounding_boxes), 1)
@@ -285,14 +285,6 @@ def _fill_arrays( # <------------------------[TRYING TO GET THIS AND AT IMPLEMEN
     mesh_vertices_offset = 0
     triangles_offset = 0
 
-    # [NOTE] takes the pre-allocated big arrays and fill them with individual information about bounding box:
-    # [vertices], [mesh vertices], [mesh vertices center], [mesh vertices offsets] (offset for width), and [mesh triangles]
-    # [mesh vertices], [mesh vertices center], [mesh vertices offsets] and [mesh triangles] are composed of faces and edges
-    # for faces [mesh vertices] = [mesh vertices center] and there is no offset → no width
-    # for edges current width is calculated using offset → [mesh vertices] is dynamic and different from [mesh vertices center]
-    # function keeps track of where different bounding boxes are in the big array using indexing → converts local indices
-    # (per bounding box) into global indices
-
     for i, (bounding_box, face_color, edge_color) in enumerate(
         zip(bounding_boxes, face_colors, edge_colors, strict=True)
     ):
@@ -450,10 +442,10 @@ class BoundingBoxList:
         self._displayed = np.array([])
         self._slice_key = np.array([])
         self.displayed_vertices = np.array([], dtype=CoordinateDtype)
-        self.displayed_vertices_to_bounding_box_num = np.array([], dtype=IndexDtype) # [NOTE] new addition → changed shape to bounding_box
+        self.displayed_vertices_to_bounding_box_num = np.array([], dtype=IndexDtype) 
         self.displayed_indices = np.array([], dtype=IndexDtype)
         self._vertices = np.empty((0, self.ndisplay), dtype=CoordinateDtype)
-        self._vertices_index: IndexArray = np.zeros(1, dtype=IndexDtype) # [NOTE] new addition
+        self._vertices_index: IndexArray = np.zeros(1, dtype=IndexDtype)
         self._z_index: IndexArray = np.empty(0, dtype=IndexDtype)
         self._z_order: IndexArray = np.empty(0, dtype=IndexDtype)
 
@@ -471,10 +463,6 @@ class BoundingBoxList:
         if not isinstance(data, Sequence):
             data = list(data)
         self.add(data)
-
-    # [NOTE] from _vertices_slice to batch updates → new additions
-    # [NOTE] big arrays with vertices, triangulation vertices, and triangles can be created
-    # [NOTE] indexes indicate what values in these big arrays are attributes to what shape/bounding box
 
     def _vertices_slice(self, bbox_index: int | np.integer) -> slice:
         """Return the slice of vertices for a given bounding box index."""
@@ -583,7 +571,7 @@ class BoundingBoxList:
         return slice(start, start + bbox.edge_triangles_count)
 
     @contextmanager
-    def batched_updates(self) -> Generator[None, None, None]: # [NOTE] new addition to BoundingBoxList → used in BoundingBoxLayer
+    def batched_updates(self) -> Generator[None, None, None]:
         """
         Reentrant context manager to batch the display update
 
@@ -643,7 +631,7 @@ class BoundingBoxList:
             for bbox in bounding_boxes:
                 bbox.ndisplay = self.ndisplay
             self.remove_all()
-            self._add_multiple_bounding_boxes( # [NOTE] new removing all and adding multiple at the same time 
+            self._add_multiple_bounding_boxes( 
                 bounding_boxes, face_colors=face_color, edge_colors=edge_color
             )
 
@@ -672,7 +660,7 @@ class BoundingBoxList:
     def face_color(self, face_color: npt.NDArray) -> None:
         self._set_color(face_color, 'face')
 
-    @_batch_dec # [NOTE] added batch decorator
+    @_batch_dec
     def _set_color(
         self, colors: npt.NDArray, attribute: Literal['edge', 'face']
     ) -> None:
@@ -727,12 +715,12 @@ class BoundingBoxList:
             self._clear_cache()
             self._update_displayed()
 
-    def _update_displayed_triangles_to_bounding_box_index( # [NOTE] new addition changed from shape → bounding box
+    def _update_displayed_triangles_to_bounding_box_index(
         self, displayed_indices: IndexArray
     ) -> None:
         """Update the displayed triangles to bounding box index mapping."""
         if (
-            self._mesh.displayed_triangles_to_bounding_box_index.shape[0] # [TODO] new addition this needs to be implemented in _mesh
+            self._mesh.displayed_triangles_to_bounding_box_index.shape[0]
             != self._mesh.displayed_triangles.shape[0]
         ):
             self._mesh.displayed_triangles_to_bounding_box_index = np.full(
@@ -748,7 +736,7 @@ class BoundingBoxList:
             ] = i
             shift_idx += elem_num
 
-    def _update_displayed_vertices_to_bounding_box_num( # [NOTE] new addition changed from shape → bounding box
+    def _update_displayed_vertices_to_bounding_box_num(
         self, displayed_indices: IndexArray
     ) -> None:
         """Update the displayed vertices to bounding box index mapping."""
@@ -769,7 +757,7 @@ class BoundingBoxList:
             ] = i
             shift_idx += elem_num
 
-    def _update_displayed(self) -> None: # [NOTE] changes require batch context
+    def _update_displayed(self) -> None:
         """Update the displayed data based on the slice key.
 
         This method must be called from within the `batched_updates` context
@@ -786,10 +774,6 @@ class BoundingBoxList:
         if len(slice_key) != self.slice_keys.shape[-1]:
             return
 
-        # [NOTE] Unlike original implementation for shape, 
-        # bounding boxes do not need to be entirely contained within 
-        # the current slice to be displayed, due to 3D boxes being
-        # represented in 2D.
         if len(self.bounding_boxes) > 0:
             self._displayed = np.all(
                 np.logical_and(self.slice_keys[:, 0, :] <= slice_key, slice_key <= self.slice_keys[:, 1, :]), axis=1)
@@ -797,8 +781,6 @@ class BoundingBoxList:
             self._displayed = np.array([])
         disp_indices: IndexArray = np.nonzero(self._displayed)[0]  # type: ignore[assignment]
 
-        # [NOTE] changes made to displayed vertices and triangles 
-        
         z_order = self._mesh.triangles_z_order
 
         triangle_ranges: IndexArray | slice
@@ -942,7 +924,6 @@ class BoundingBoxList:
             else:
                 self._edge_color[bounding_box_index, :] = edge_color
 
-        # [NOTE] changes made to accomodate bookeeping on big array 
         vertices_ = bounding_box.data_displayed
         self._vertices_index = np.append(
             self._vertices_index,
@@ -1013,7 +994,6 @@ class BoundingBoxList:
             self._update_z_order()
         self._clear_cache()
 
-    # [NOTE] new bounding boxes added to big arrays for vertex, triangles, colors, indexes for arrays
     def _extend_meshes(self, face_colors, edge_colors, arrays: MeshArrayDict):
         """Assemble mesh properties from filled arrays.
 
@@ -1483,7 +1463,6 @@ class BoundingBoxList:
         data : np.ndarray
             NxD array of vertices.
         """
-        # [NOTE] compared to original implemenation, ignoring shape type changes
         bounding_box = self.bounding_boxes[index]
         bounding_box.data = data
 
@@ -1605,7 +1584,6 @@ class BoundingBoxList:
             if self.bounding_boxes[index].dims_order != dims_order:
                 bounding_box = self.bounding_boxes[index]
                 bounding_box.dims_order = dims_order
-                # [NOTE] update is used whereas bounding box prior implementation was remove and add
                 self.update(index)
         self._update_z_order()
 
@@ -1652,22 +1630,6 @@ class BoundingBoxList:
         self.bounding_boxes[index].scale(scale, center=center)
         self.update(index)
         self._update_z_order()
-
-    # [NOTE] rotate edited out in previous bounding box implementation 
-    #def rotate(self, index, angle, center=None):
-    #    """Performs a rotation on a single shape located at index
-    #
-    #    Parameters
-    #    ----------
-    #    index : int
-    #        Location in list of the shape to be changed.
-    #    angle : float
-    #        angle specifying rotation of shape in degrees.
-    #    center : list
-    #        length 2 list specifying coordinate of center of rotation.
-    #    """
-    #    self.shapes[index].rotate(angle, center=center)
-    #    self._update_mesh_vertices(index, edge=True, face=True)
 
     def flip(self, index, axis, center=None):
         """Performs an vertical flip on a single bounding box located at index
@@ -1731,7 +1693,6 @@ class BoundingBoxList:
             )
         return self.outlines(indices)
 
-    # [NOTE] refactored outlining logic: outline and outlines function
     def outlines(
         self, indices: Sequence[int]
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -1777,7 +1738,6 @@ class BoundingBoxList:
             n_verts_per_bbox = []
             n_tris_per_bbox = []
 
-            # [NOTE] this may not be necessary for bounding boxes as vertices and triangles same across bounding boxes(?)
             for bb in chunk_bounding_boxes:
                 verts = bb._edge_vertices
                 chunk_centers.append(verts)
@@ -1814,8 +1774,6 @@ class BoundingBoxList:
             np.concatenate(triangles_blocks),
         )
 
-    # [NOTE] makes use of attribute _bounding_boxes which is default napari defined - not to be confused
-    # [NOTE] addition refactor _in_box logic using (napari) bounding boxes 
     def bounding_boxes_in_box(
         self, corners: np.ndarray[tuple[Literal[2], Literal[2]]]
     ) -> list[int]:
@@ -1880,9 +1838,6 @@ class BoundingBoxList:
             ).any()
         ]
 
-    # [NOTE] here the logic can be kept because a visible bounding box is defined as a range check
-    # unlike in the orginal implementation of _update_displayed used by the renderer with an
-    # exact match check for the slice key 
     @cached_property
     def _visible_bounding_boxes(self) -> list[tuple[int, BoundingBox]]:
         slice_key = self.slice_key
@@ -1897,7 +1852,6 @@ class BoundingBoxList:
             ]
         return list(enumerate(self.bounding_boxes))
 
-    # [NOTE] new addition makes calls to the bounding_box function of BoundingBox/Shape (in napari)
     @cached_property
     def _bounding_boxes(
         self,
@@ -2008,7 +1962,7 @@ class BoundingBoxList:
         closest_bbox_index = np.argmin(distances)
         bounding_box = self._mesh.displayed_triangles_to_bounding_box_index[inside][
             closest_bbox_index
-        ] # [TODO] new addition this needs to be implemented in _mesh
+        ]
         intersection = intersection_points[closest_bbox_index]
         return bounding_box, intersection
 

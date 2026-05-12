@@ -22,27 +22,26 @@ from napari.layers.shapes._accelerated_triangulate_dispatch import (
     warmup_numba_cache,
 )
 
-from .bounding_box import BoundingBox # [TODO] BoundingBox replaces Shape but probably needs updated
-from ._bounding_box_list import BoundingBoxList # [TODO] BoundingBoxList replaces ShapeList but probably needs updated
+from .bounding_box import BoundingBox
+from ._bounding_box_list import BoundingBoxList
 from ..napari_0_4_18._bounding_box_constants import (
     Box,
     ColorMode,
     Mode,
     SizeMode
-) # [TODO] check if needs re-implementation 
-from ._bounding_box_mouse_bindings import ( # [TODO] BoundingBox replaces _shapes_mouse_bindings but probably needs updated
+)
+from ._bounding_box_mouse_bindings import (
     add_bounding_box,
     highlight,
     select,
 )
 
-# [TODO] check functions in utils and re implement
 from ..napari_0_4_18._bounding_box_utils import (
     number_of_bounding_boxes,
     validate_num_vertices,
     create_box
 )
-#from ..napari_0_4_15.bounding_boxes import BoundingBoxLayer # [NOTE] not needed because fully re-implemented
+
 
 from ..._helper_functions import layer_slice_indices, layer_dims_order, layer_ndisplay
 from ..._utils import NAPARI_VERSION
@@ -458,7 +457,7 @@ class BoundingBoxLayer(Layer):
             warmup_numba_cache()
         else:
             data = np.asarray(data)
-            data_ndim = data.shape[-1] # [NOTE] differs from the shape implementation
+            data_ndim = data.shape[-1]
             if ndim is not None and ndim != data_ndim:
                 raise ValueError(
                     trans._(
@@ -499,7 +498,7 @@ class BoundingBoxLayer(Layer):
             highlight=Event,
             features=Event,
             feature_defaults=Event,
-            size_mode=Event, # [NOTE] bbox plugin specific events
+            size_mode=Event,
             size_multiplier=Event,
             size_constant=Event
         )
@@ -527,7 +526,7 @@ class BoundingBoxLayer(Layer):
             self._current_edge_width = 1
 
         self._data_view = BoundingBoxList(ndisplay=self._slice_input.ndisplay)
-        self._data_view.slice_key = np.array(self._data_slice.point)[  # [NOTE] ignoring napari back compatibility 
+        self._data_view.slice_key = np.array(self._data_slice.point)[ 
             self._slice_input.not_displayed
         ]
 
@@ -559,7 +558,7 @@ class BoundingBoxLayer(Layer):
         self._is_selecting = False
         self._drag_box = None
         self._drag_box_stored = None
-        self._is_creating = False # [TODO] new addition → to add to mouse_binding
+        self._is_creating = False
         self._clipboard: dict[str, BoundingBox] = {}
         self._outlines_cache: dict[
             int | None, tuple[np.ndarray, np.ndarray, np.ndarray]
@@ -569,7 +568,7 @@ class BoundingBoxLayer(Layer):
         )
 
         self._status = self.mode
-        self._size_mode = None # [NOTE] bbox plugin specific modes
+        self._size_mode = None
         self.size_mode = SizeMode.AVERAGE
         self._size_multiplier = 1.
         self._size_constant = 20.
@@ -722,10 +721,10 @@ class BoundingBoxLayer(Layer):
 
         self.events.data(**kwargs)
         self._data_view = BoundingBoxList(ndisplay=self._slice_input.ndisplay)
-        self._data_view.slice_key = np.array(self._data_slice.point)[ # [NOTE] ignoring napari back compatibility
+        self._data_view.slice_key = np.array(self._data_slice.point)[
             self._slice_input.not_displayed
         ]
-        self._add_bounding_boxes( #[NOTE]:_add_shapes → _add_bounding_boxes
+        self._add_bounding_boxes(
             data,
             edge_width=edge_widths,
             edge_color=edge_color,
@@ -841,7 +840,7 @@ class BoundingBoxLayer(Layer):
         return ndim
 
     @property
-    def _extent_data(self) -> np.ndarray: # [NOTE] not making use of _bounding_box attributes as with ShapeList
+    def _extent_data(self) -> np.ndarray:
         """Extent of layer in data coordinates.
 
         Returns
@@ -1223,7 +1222,7 @@ class BoundingBoxLayer(Layer):
     ) -> None:
         self._selected_data.replace_selection(selected_data)
 
-    def _on_selection_changed(self, added, removed): # [NOTE] added to napari 0.7.0 ?
+    def _on_selection_changed(self, added, removed):
         self._selected_box = self.interaction_box(self.selected_data)
 
         # Update properties based on selected bounding boxes
@@ -1682,7 +1681,7 @@ class BoundingBoxLayer(Layer):
 
         non_draw_modes = {
             Mode.PAN_ZOOM
-            #Mode.SELECT, # [NOTE] Mode.SELECT is in draw_modes in previous version of plugin
+            #Mode.SELECT,
         }
 
         if mode not in non_draw_modes:
@@ -1697,8 +1696,6 @@ class BoundingBoxLayer(Layer):
                 self._finish_drawing()
         else:
             self.refresh(data_displayed=False, extent=False, thumbnail=False)
-
-    # [NOTE] _reset_editable, _on_editable_changed, _update_draw not implemented in previous version of plugin
 
     def _reset_editable(self) -> None:
         self.editable = self._slice_input.ndisplay == 2
@@ -1716,8 +1713,6 @@ class BoundingBoxLayer(Layer):
         )
         if prev_scale != self.scale_factor and self.selected_data:
             self._set_highlight(force=True)
-
-    # [NOTE] SizeMode specific to bounding box plugin
 
     @property
     def size_mode(self):
@@ -1819,7 +1814,7 @@ class BoundingBoxLayer(Layer):
             z_index=z_index,
         )
 
-    def add( # [NOTE]: previously set up for compatibitility with napari versions
+    def add(
         self,
         data,
         *,
@@ -1974,7 +1969,7 @@ class BoundingBoxLayer(Layer):
             self._data_view._update_z_order()
             self.refresh_colors()
 
-    def _add_bounding_boxes( # [NOTE] changes to feature table and text moved here from add function
+    def _add_bounding_boxes(
         self,
         data,
         *,
@@ -2080,7 +2075,7 @@ class BoundingBoxLayer(Layer):
 
             self._add_bounding_boxes_to_view(bounding_box_inputs, self._data_view)
 
-        self._display_order_stored = copy(self._slice_input.order) # [NOTE] ignoring napari back compatibility 
+        self._display_order_stored = copy(self._slice_input.order)
         self._ndisplay_stored = copy(self._slice_input.ndisplay)
         self._update_dims()
 
@@ -2095,7 +2090,7 @@ class BoundingBoxLayer(Layer):
                     d,
                     edge_width=ew,
                     z_index=z,
-                    dims_order=self._slice_input.order, # [NOTE] ignoring napari back compatibility 
+                    dims_order=self._slice_input.order, 
                     ndisplay=self._slice_input.ndisplay,
                 ),
                 ec,
@@ -2136,7 +2131,7 @@ class BoundingBoxLayer(Layer):
         self.text.refresh(self.features)
 
     @property
-    def _normalized_scale_factor(self): # [NOTE] new addition
+    def _normalized_scale_factor(self): 
         """Scale factor accounting for layer scale.
 
         This is often needed when calculating screen-space sizes and distances
@@ -2145,29 +2140,29 @@ class BoundingBoxLayer(Layer):
         return self.scale_factor / self.scale[-1] # [TODO] check that makes sense for 3D boxes
 
     @property
-    def _normalized_vertex_radius(self): # [NOTE] new addition
+    def _normalized_vertex_radius(self): 
         """Vertex radius normalized to screen space."""
         return self._vertex_size * self._normalized_scale_factor / 2
 
     def _set_view_slice(self):
         """Set the view given the slicing indices."""
-        with self._data_view.batched_updates(): # [TODO] needs to be implemented in new bounding_box_list 
-            ndisplay = self._slice_input.ndisplay # [NOTE] ignoring napari back compatibility 
+        with self._data_view.batched_updates():  
+            ndisplay = self._slice_input.ndisplay 
             if ndisplay != self._ndisplay_stored:
                 self.selected_data = set()
                 self._data_view.ndisplay = min(self.ndim, ndisplay)
                 self._ndisplay_stored = ndisplay
                 self._clipboard = {}
 
-            if self._slice_input.order != self._display_order_stored: # [NOTE] ignoring napari back compatibility 
+            if self._slice_input.order != self._display_order_stored:
                 self.selected_data = set()
                 self._data_view.update_dims_order(self._slice_input.order)
                 self._display_order_stored = copy(self._slice_input.order)
                 # Clear clipboard if dimensions swap
                 self._clipboard = {}
 
-            slice_key = np.array(self._data_slice.point)[ # [NOTE] ignoring napari back compatibility 
-                self._slice_input.not_displayed # [NOTE] ignoring napari back compatibility 
+            slice_key = np.array(self._data_slice.point)[
+                self._slice_input.not_displayed
             ]
             if not np.array_equal(slice_key, self._data_view.slice_key):
                 self.selected_data = set()
@@ -2209,7 +2204,7 @@ class BoundingBoxLayer(Layer):
                     box = None
                 else:
                     mask = np.isin(
-                        self._data_view.displayed_vertices_to_bounding_box_num, # [TODO] needs to be implemented in new bounding_box_list
+                        self._data_view.displayed_vertices_to_bounding_box_num,
                         displayed_bounding_box_indices,
                     )
                     verts = self._data_view.displayed_vertices[mask]
@@ -2325,7 +2320,7 @@ class BoundingBoxLayer(Layer):
         width : float
             Width of the box edge
         """
-        if self._highlight_visible and len(self.selected_data) > 0: # [NOTE] _highlight_visible added to base layer
+        if self._highlight_visible and len(self.selected_data) > 0:
             if self._mode == Mode.SELECT and self._selected_box is not None:
                 # If in select mode just show the interaction bounding box
                 # including its vertices, without handle
@@ -2347,7 +2342,7 @@ class BoundingBoxLayer(Layer):
             ):
                 # If in one of these mode show the vertices of the shape itself
                 inds = np.isin(
-                    self._data_view.displayed_vertices_to_bounding_box_num, # [TODO] needs to be implemented in new bounding_box_list
+                    self._data_view.displayed_vertices_to_bounding_box_num,
                     list(self.selected_data),
                 )
                 vertices = self._data_view.displayed_vertices[inds][:, ::-1]
@@ -2420,7 +2415,7 @@ class BoundingBoxLayer(Layer):
         self._fixed_vertex = None
         self._value = (None, None)
         self._moving_value = (None, None)
-        self._last_cursor_position = None # [NOTE] attribute added to shape layer
+        self._last_cursor_position = None
         self._is_creating = False
         self._update_dims()
 
@@ -2470,7 +2465,7 @@ class BoundingBoxLayer(Layer):
 
             self.thumbnail = colormapped
 
-    def remove(self, indices: list[int]) -> None: # [NOTE] remove and remove_selected changes
+    def remove(self, indices: list[int]) -> None:
         """Remove any bounding boxes at the given indices.
 
         Parameters
@@ -2480,7 +2475,7 @@ class BoundingBoxLayer(Layer):
         """
         to_remove = sorted(indices, reverse=True)
 
-        if len(indices) > 0: # [NOTE] ignoring napari back compatibility 
+        if len(indices) > 0:
             self.events.data(
                 value=self.data,
                 action=ActionType.REMOVING,
@@ -2489,7 +2484,7 @@ class BoundingBoxLayer(Layer):
                 ),
                 vertex_indices=((),),
             )
-            self._data_view.remove_multiple(to_remove) # [TODO] needs to be implemented in new bounding_box_list
+            self._data_view.remove_multiple(to_remove)
 
             if len(self.data) == 0 and self.selected_data:
                 self.selected_data.clear()
@@ -2516,7 +2511,7 @@ class BoundingBoxLayer(Layer):
             self._data_view._face_color = np.delete(
                 self._data_view._face_color, indices, axis=0
             )
-            self.events.data( # [NOTE] ignoring napari back compatibility 
+            self.events.data( 
                 value=self.data,
                 action=ActionType.REMOVED,
                 data_indices=tuple(
@@ -2531,7 +2526,7 @@ class BoundingBoxLayer(Layer):
         """Remove any selected bounding boxes."""
         self.remove(list(self.selected_data))
 
-    def get_bounding_box_info(self, index: int) -> dict[str, Any]: # [NOTE] new addition
+    def get_bounding_box_info(self, index: int) -> dict[str, Any]:
         """Retrieve all available information for the bounding box at the given index.
 
         Parameters
@@ -2622,7 +2617,7 @@ class BoundingBoxLayer(Layer):
         box = box @ transform.T
         if not np.array_equal(box[Box.TOP_CENTER], box[Box.HANDLE]):
             r = self._rotation_handle_length * self._normalized_scale_factor
-            handle_vec = box[Box.HANDLE] - box[Box.TOP_CENTER]
+            handle_vec = box[Box.HANDLE] - box[Box.TOP_CENTER] # [TODO] may have to avoid handle for rotation tranform if want to keep axis-aligned
             cur_len = np.linalg.norm(handle_vec)
             box[Box.HANDLE] = box[Box.TOP_CENTER] + r * handle_vec / cur_len
         self._selected_box = box + center
@@ -2657,7 +2652,7 @@ class BoundingBoxLayer(Layer):
         selected_index = list(self.selected_data)
 
         if len(selected_index) > 0:
-            self.scale[self._slice_input.displayed] # [NOTE] new addition 
+            self.scale[self._slice_input.displayed]
             # Get the vertex sizes. They need to be rescaled by a few parameters:
             # - scale_factor, because vertex sizes are zoom-invariant
             # - scale, because vertex sizes are not affected by scale (unlike in Points)
@@ -2857,7 +2852,7 @@ class BoundingBoxLayer(Layer):
             # Calculate offset based on dimension shifts
             offset = [
                 self._data_slice.point[i] - self._clipboard['indices'][i]
-                for i in self._slice_input.not_displayed # [NOTE] ignoring napari backcompatibility 
+                for i in self._slice_input.not_displayed 
             ]
 
             self._feature_table.append(self._clipboard['features'])
@@ -2867,7 +2862,7 @@ class BoundingBoxLayer(Layer):
             for i, s in enumerate(self._clipboard['data']):
                 shape = deepcopy(s)
                 data = copy(shape.data)
-                not_disp = self._slice_input.not_displayed # [NOTE] ignoring napari backcompatibility
+                not_disp = self._slice_input.not_displayed
                 data[:, not_disp] = data[:, not_disp] + np.array(offset)
                 shape.data = data
                 face_color = self._clipboard['face_color'][i]
@@ -2885,13 +2880,13 @@ class BoundingBoxLayer(Layer):
 
     # [NOTE] ignoring to_masks and to_labels
 
-    def _get_layer_slicing_state( # [NOTE] key addition of napari 0.7.0
+    def _get_layer_slicing_state(
         self, data: LayerDataType, cache: bool
     ) -> _ShapesSlicingState:
         return _ShapesSlicingState(layer=self, data=data, cache=cache)
 
 
-class _ShapesSlicingState(_LayerSlicingState): # [NOTE] key addition of napari 0.7.0
+class _ShapesSlicingState(_LayerSlicingState):
     layer: BoundingBoxLayer
 
     def _set_view_slice(self):

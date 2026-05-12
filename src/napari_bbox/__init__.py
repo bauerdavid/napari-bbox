@@ -22,9 +22,7 @@ if NAPARI_VERSION >= "0.7.0":
             self.layers.append(layer)
             return layer
 
-# [NOTE] hacky way of preventing bbox interactions from changing the viewer’s slice position
-# stores last dimension positions before drag and returns to it after
-# presumably to avoid going to new Z dimensions after drawing box in 3D (?)
+
 elif NAPARI_VERSION >= "0.4.18":
     def revert_last_dim_point_cb(viewer: Viewer):
         def revert_last_dim_point(layer, event):

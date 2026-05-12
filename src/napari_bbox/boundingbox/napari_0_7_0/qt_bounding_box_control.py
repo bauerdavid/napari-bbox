@@ -12,8 +12,6 @@ from napari._qt.layer_controls.widgets._shapes import (
     QtEdgeWidthSliderControl,
 )
 
-# [NOTE] removed for bounding box plugin
-#from napari.layers.shapes._shapes_constants import Mode
 from napari.layers.base.base import Layer
 
 from napari._qt.utils import set_widgets_enabled_with_opacity
@@ -23,7 +21,6 @@ from napari.utils.events import disconnect_events
 from napari.utils.interactions import Shortcut
 from napari.utils.translations import trans
 
-# [NOTE] addition for bounding box plugin
 from ._bounding_box_constants import Mode
 from .bounding_boxes import BoundingBoxLayer
 
@@ -40,7 +37,6 @@ from qtpy.QtWidgets import (
     QLabel
 )
 
-# [NOTE] addition for bounding box plugin
 from superqt.sliders import QLabeledDoubleSlider, QLabeledSlider
 from napari._qt.qt_resources import get_current_stylesheet
 from ...resources import cube_style_path
@@ -216,8 +212,8 @@ class QtSuperBoundingBoxControls(QFrame):
         self._on_editable_or_visible_change()
 
         self.button_grid = QGridLayout()
-        self.button_grid.addWidget(self.panzoom_button, 0, 5) # [NOTE] changed to work with bounding box plugin
-        self.button_grid.addWidget(self.transform_button, 0, 6) # [NOTE] changed to work with bounding box plugin
+        self.button_grid.addWidget(self.panzoom_button, 0, 5) 
+        self.button_grid.addWidget(self.transform_button, 0, 6) 
         self.button_grid.setContentsMargins(5, 0, 0, 5)
         self.button_grid.setColumnStretch(0, 1)
         self.button_grid.setSpacing(4)
@@ -295,7 +291,6 @@ class QtSuperBoundingBoxControls(QFrame):
         """
         action_name = f'napari:{action_name}'
         btn = QtModeRadioButton(layer, btn_name, mode, **kwargs)
-        # [NOTE] editted out in bounding box plugin
         action_manager.bind_button(
             action_name,
             btn,
@@ -480,7 +475,7 @@ class QtBoundingBoxControls(QtSuperBoundingBoxControls):
                 shortcut=Shortcut('Backspace').platform,
             ),
         )
-        # [NOTE] select_button and bounding_box_button should be added to _EDIT_BUTTONS automatically with _radio_button()
+
         self._EDIT_BUTTONS += (
             self.delete_button,
         )
@@ -515,7 +510,6 @@ class QtBoundingBoxControls(QtSuperBoundingBoxControls):
         self._text_visibility_control = QtTextVisibilityControl(self, layer)
         self._add_widget_controls(self._text_visibility_control)
 
-        # [NOTE] bounding box plugin specific
         self.layer.events.size_mode.connect(self._on_size_mode_change)
         self.layer.events.size_multiplier.connect(self._on_size_multiplier_change)
         self.layer.events.size_constant.connect(self._on_size_constant_change)
@@ -575,7 +569,6 @@ class QtBoundingBoxControls(QtSuperBoundingBoxControls):
         self.layer.editable = self.ndisplay == 2
         super()._on_ndisplay_changed()
 
-    # [NOTE] bounding box plugin specific
     def changeSizeMode(self, value=None):
         mode = self.bb_size_mode_combobox.itemText(value)
         self.layer.size_mode = mode
@@ -608,7 +601,6 @@ class QtBoundingBoxControls(QtSuperBoundingBoxControls):
         with self.layer.events.size_multiplier.blocker():
             self.bb_size_const_slider.setValue(self.layer.size_constant)
 
-# [NOTE] have to register the BoundingBoxControls
 from napari._qt.layer_controls.qt_layer_controls_container import layer_to_controls
 def register_layer_control(layer_type):
     layer_to_controls[layer_type] = QtBoundingBoxControls

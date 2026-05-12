@@ -56,7 +56,6 @@ except ImportError:
 
 TRIANGULATION_BACKEND = TriangulationBackend.pure_python
 
-# [NOTE] added information to the documnentation
 class BoundingBox(ABC):
     """Base class for a single bounding box
 
@@ -88,7 +87,7 @@ class BoundingBox(ABC):
             - a (4, D) array specifying the four corners of a bounding box in 2D
             - a (8, D) array specifying the eight corners of a bounding box in 3D
         These need not be axis aligned.
-    data_displayed : (N, 2) array or (N, 3) array # [NOTE] key difference with Shape in napari
+    data_displayed : (N, 2) array or (N, 3) array
         Vertices of the bounding box that are currently displayed. 
     edge_width : float
         thickness of lines and edges.
@@ -139,7 +138,7 @@ class BoundingBox(ABC):
 
     def __init__(
         self,
-        data, # [NOTE] important to implement back 
+        data,
         *,
         edge_width=1,
         z_index=0,
@@ -165,8 +164,8 @@ class BoundingBox(ABC):
 
         self._closed = True
         self._filled = True
-        self._bounding_box = np.empty((0, self.ndisplay)) # [NOTE] important to implement before it can be written if data
-        self.data = data # [NOTE] important to implement back
+        self._bounding_box = np.empty((0, self.ndisplay))
+        self.data = data
         self._use_face_vertices = False
         self.edge_width = edge_width
         self.z_index = z_index
@@ -209,7 +208,6 @@ class BoundingBox(ABC):
         return super().__new__(cls)
 
     @property
-    # [NOTE] implemented direcly in class so removing the @abstractmethod decorator
     def data(self):
         # user writes own docstring
         return self._data
@@ -239,10 +237,6 @@ class BoundingBox(ABC):
 
         self._data = data
 
-        # [NOTE] works for all type of data array
-        # since a bounding box is already expected to be axis-aligned,
-        # this just returns the (2, D) array
-        # specifying the tlf and brb corners for that bounding box
         self._bounding_box = np.array(
             [
                 np.min(data, axis=0),
@@ -252,7 +246,6 @@ class BoundingBox(ABC):
 
         self._update_displayed_data()
 
-    # [NOTE] implemented direcly in class so removing the @abstractmethod decorator
     def _update_displayed_data(self):
         """Update the data that is to be displayed."""
         # Add four boundary lines and then two triangles for each
@@ -300,8 +293,6 @@ class BoundingBox(ABC):
             self._face_triangles = np.array([[0, 0, 0]])
         self._update_slice_key()
 
-    # [NOTE] keeping old implementation but _bounding_box now used for this in napari
-    # [TODO] check if can rely on internal napari _bounding_box instead
     def _update_slice_key(self):
         data_not_displayed = self.data[:, self.dims_not_displayed]
         self.slice_key = np.array(
@@ -340,8 +331,6 @@ class BoundingBox(ABC):
         """tuple: Dimensions that are displayed."""
         return self.dims_order[-self.ndisplay :]
 
-    # [NOTE] new addition, internal napari bounding_box, not to be confused
-    # [TODO] could try without extra edges
     @property
     def bounding_box(self) -> np.ndarray:
         """(2, N) array, bounding box of the object."""
@@ -356,8 +345,6 @@ class BoundingBox(ABC):
         """tuple: Dimensions that are not displayed."""
         return self.dims_order[: -self.ndisplay]
 
-    # [NOTE] data_displayed not cached property in order to use the setter
-    # [TODO] check that works
     @property
     def data_displayed(self) -> CoordinateArray:
         """(N, 2) or (N, 3) array: Vertices of the bounding box that are currently displayed."""
@@ -371,15 +358,11 @@ class BoundingBox(ABC):
         data = self.data[:, self.dims_displayed]
         data_sorted = data.copy()
         idx_sort = np.arange(len(data))
-        # [NOTE] going through the dims displayed and sorting vertices
         for d in range(data.shape[1]):
             sub_idx_sort = data_sorted[:, -1 - d].argsort(kind='mergesort')
             data_sorted = data_sorted[sub_idx_sort]
             idx_sort = idx_sort[sub_idx_sort]
-        # [NOTE] when collapsing from higher dimension to lower → duplicate vertices → need to group them
         vals, idx_start, count = np.unique(data_sorted, return_counts=True, return_index=True, axis=0)
-        # [NOTE] get the unique vertices and move the corresponding collapsed group together
-        # [NOTE] key to the bbox plugin to maintain 2D → 3D consistency 
         uniqe_idx = np.split(idx_sort, idx_start[1:])
         for val, idx_list in zip(new_value, uniqe_idx):
             self._data[idx_list[:, np.newaxis], self.dims_displayed] = val
@@ -677,7 +660,6 @@ class BoundingBox(ABC):
                 self._face_vertices = vertices
                 self._face_triangles = triangles
 
-    # [NOTE] python backend to implement with bbox plugin
     def _set_meshes_py(
         self,
         data: CoordinateArray,
@@ -715,29 +697,25 @@ class BoundingBox(ABC):
             self._edge_vertices = centers
             self._edge_offsets = offsets
             self._edge_triangles = triangles
-        else: # [NOTE] new cleaning logic
+        else:
             self._set_empty_edge()
 
         # set empty data as fallback
         self._set_empty_face()
 
         # removing consecutive duplicate points
-        # [NOTE] no need for hack in remove_path_duplicates function
         idx = np.concatenate(
             [[True], ~np.all(data[1:] == data[:-1], axis=-1)]
             )
-        clean_data = data[idx].copy() # [NOTE] removes consecutive duplicate points.
-
-        if face and not is_collinear(clean_data): # [NOTE] if all points in the same line → no face
-            # [NOTE] check 2D
+        clean_data = data[idx].copy() 
+        if face and not is_collinear(clean_data):
             if clean_data.shape[1] == 2:
                 vertices, triangles = triangulate_face(
                     clean_data, triangulate_face_vispy
                 )
-            else: # [NOTE] 3D
-                # [NOTE] in a single plane
+            else:
                 data2d, axis, value = find_planar_axis(clean_data)
-                if axis is not None and value is not None: # [NOTE] found single plane
+                if axis is not None and value is not None:
                     vertices, triangles = triangulate_face(
                         data2d, triangulate_face_vispy
                         )
@@ -746,63 +724,6 @@ class BoundingBox(ABC):
                         self._face_vertices = vertices
                         self._face_triangles = triangles
                     return
-        # [NOTE] for 3D bounding boxes can ignore faces
-
-    # [NOTE] leaving the option for the legacy implementation for now
-    # [TODO] check if can be removed
-    def legacy_set_meshes(self, data, closed=True, face=True, edge=True):
-        """Sets the face and edge meshes from a set of points.
-
-        Parameters
-        ----------
-        data : np.ndarray
-            Nx2 or Nx3 array specifying the bounding box to be triangulated
-        closed : bool
-            Bool which determines if the edge is closed or not
-        face : bool
-            Bool which determines if the face need to be traingulated
-        edge : bool
-            Bool which determines if the edge need to be traingulated
-        """
-        if edge:
-            centers, offsets, triangles = triangulate_edge(data, closed=closed)
-            self._edge_vertices = centers
-            self._edge_offsets = offsets
-            self._edge_triangles = triangles
-        else:
-            self._edge_vertices = np.empty((0, self.ndisplay))
-            self._edge_offsets = np.empty((0, self.ndisplay))
-            self._edge_triangles = np.empty((0, 3), dtype=np.uint32)
-
-        if face: 
-            idx = np.concatenate(
-                [[True], ~np.all(data[1:] == data[:-1], axis=-1)]
-            )
-            clean_data = data[idx].copy() # [NOTE] removes consecutive duplicate points.
-
-            if not is_collinear(clean_data[:, -2:]): #[NOTE] if all points in the same line → no face
-                if clean_data.shape[1] == 2: # [NOTE] check 2D
-                    vertices, triangles = triangulate_face(clean_data)
-                elif len(np.unique(clean_data[:, 0])) == 1: # [NOTE] planar check if all points on the same plane for first dim (e.g. Z)
-                    val = np.unique(clean_data[:, 0])
-                    vertices, triangles = triangulate_face(clean_data[:, -2:]) # [NOTE] triangulate in 2D easier if all in same plane
-                    exp = np.expand_dims(np.repeat(val, len(vertices)), axis=1)
-                    vertices = np.concatenate([exp, vertices], axis=1)
-                else: #[NOTE] if in 3D no face drawn
-                    triangles = []
-                    vertices = []
-                if len(triangles) > 0:
-                    self._face_vertices = vertices
-                    self._face_triangles = triangles
-                else:
-                    self._face_vertices = np.empty((0, self.ndisplay))
-                    self._face_triangles = np.empty((0, 3), dtype=np.uint32)
-            else:
-                self._face_vertices = np.empty((0, self.ndisplay))
-                self._face_triangles = np.empty((0, 3), dtype=np.uint32)
-        else:
-            self._face_vertices = np.empty((0, self.ndisplay))
-            self._face_triangles = np.empty((0, 3), dtype=np.uint32)
 
     def _triangulate_edge(
         self, data: CoordinateArray, closed: bool
@@ -880,7 +801,7 @@ class BoundingBox(ABC):
         self._edge_vertices = centers
         self._edge_offsets = offsets
         self._edge_triangles = triangles
-        self._bounding_box = np.array( # [NOTE] addition internal _bounding_box
+        self._bounding_box = np.array(
             [
                 np.min(self._data, axis=0),
                 np.max(self._data, axis=0),
@@ -902,7 +823,7 @@ class BoundingBox(ABC):
         self._face_vertices = self._face_vertices + shift
         self._edge_vertices = self._edge_vertices + shift
         self._box = self._box + shift
-        self.data_displayed = self.data_displayed + shift # [NOTE] adapated for plugin → do not want to change self._data based on data_displayed
+        self.data_displayed = self.data_displayed + shift
         self._bounding_box[:, self.dims_displayed] = (
             self._bounding_box[:, self.dims_displayed] + shift
         )
@@ -929,59 +850,6 @@ class BoundingBox(ABC):
             self.shift(-center)
             self.transform(transform)
             self.shift(center)
-
-    # [NOTE] not implemented in bounding_box plugin → bbox should be axis-aligned 
-    #def rotate(self, angle, center=None):
-    #    """Performs a rotation on the shape
-    #
-    #    Parameters
-    #    ----------
-    #    angle : float
-    #        angle specifying rotation of shape in degrees. CCW is positive.
-    #    center : list
-    #        length 2 list specifying coordinate of fixed point of the rotation.
-    #    """
-    #    theta = np.radians(angle)
-    #    transform = np.array(
-    #        [[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]]
-    #    )
-    #    if center is None:
-    #        self.transform(transform)
-    #    else:
-    #        center = np.array(center)
-    #        self.shift(-center)
-    #        self.transform(transform)
-    #        self.shift(center)
-
-    # [NOTE] not implemented in bounding_box plugin
-    #def flip(self, axis, center=None):
-    #    """Performs a flip on the shape, either horizontal or vertical.
-    #
-    #    Parameters
-    #    ----------
-    #    axis : int
-    #        integer specifying axis of flip. `0` flips horizontal, `1` flips
-    #        vertical.
-    #    center : list
-    #        length 2 list specifying coordinate of center of flip axes.
-    #    """
-    #    if axis == 0:
-    #        transform = np.array([[1, 0], [0, -1]])
-    #    elif axis == 1:
-    #        transform = np.array([[-1, 0], [0, 1]])
-    #    else:
-    #        raise ValueError(
-    #            trans._(
-    #                'Axis not recognized, must be one of "{{0, 1}}"',
-    #                deferred=True,
-    #            )
-    #        )
-    #    if center is None:
-    #        self.transform(transform)
-    #    else:
-    #        self.shift(-center)
-    #        self.transform(transform)
-    #        self.shift(-center)
 
     def to_mask(self, mask_shape=None, zoom_factor=1, offset=(0, 0)):
         """Convert the shape vertices to a boolean mask.

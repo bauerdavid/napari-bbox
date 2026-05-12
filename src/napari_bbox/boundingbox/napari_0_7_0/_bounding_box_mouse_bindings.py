@@ -9,7 +9,7 @@ from psygnal.containers import Selection
 
 from napari.layers.base._base_constants import ActionType
 
-from ._bounding_box_constants import Box, Mode # [TODO] check import
+from ._bounding_box_constants import Box, Mode
 
 from napari.layers.shapes._shapes_models import (
     Ellipse,
@@ -387,7 +387,6 @@ def _move_selected_layer(
 
         # prevent box from shrinking below a threshold size
         size = (np.linalg.norm(box[Box.TOP_LEFT] - box_center),)
-        # [NOTE] using the original plugin implementation - new napari uses layer._normalized_vertex_radius
         # [TODO] check if necessary 
         threshold = (
             layer._vertex_size * layer.scale_factor / layer.scale[-1] / 2

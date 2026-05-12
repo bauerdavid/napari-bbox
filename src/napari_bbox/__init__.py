@@ -19,7 +19,6 @@ from napari import Viewer
 # dragging 3D boxes outside the initial range of the layer (mostly in Z)?
 if NAPARI_VERSION >= "0.7.0":
     def add_bounding_boxes(self, *args, **kwargs):
-            print(f"[add_bounding_boxes] working on {NAPARI_VERSION}")
             layer = BoundingBoxLayer(*args, **kwargs)
             self.layers.append(layer)
             return layer

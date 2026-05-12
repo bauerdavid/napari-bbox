@@ -221,7 +221,7 @@ class BoundingBox(ABC):
 
         if len(data) == 2:
             data = find_bbox_corners(data)
-            print(f"data: {data}")
+            # print(f"data: {data}") # [NOTE] somehow useful when adding boxes with reader
 
         # [NOTE] added more context on error 
         if len(data) != 2**len(self.dims_order):

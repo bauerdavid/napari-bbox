@@ -1,0 +1,1 @@
+from ..napari_0_6_0.vispy_bounding_box_layer import VispyBoundingBoxLayer, register_layer_visual

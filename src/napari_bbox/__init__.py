@@ -15,8 +15,17 @@ from ._widget import BoundingBoxCreator
 
 from napari import Viewer
 
-if NAPARI_VERSION >= "0.4.18":
+if NAPARI_VERSION >= "0.7.0":
+    def add_bounding_boxes(self, *args, **kwargs):
+            print(f"[add_bounding_boxes] working on {NAPARI_VERSION}")
+            layer = BoundingBoxLayer(*args, **kwargs)
+            self.layers.append(layer)
+            return layer
 
+# [NOTE] hacky way of preventing bbox interactions from changing the viewer’s slice position
+# stores last dimension positions before drag and returns to it after
+# presumably to avoid going to new Z dimensions after drawing box in 3D (?)
+elif NAPARI_VERSION >= "0.4.18":
     def revert_last_dim_point_cb(viewer: Viewer):
         def revert_last_dim_point(layer, event):
             yield
@@ -48,6 +57,7 @@ if NAPARI_VERSION >= "0.4.18":
         self.layers.events.removed.connect(disconnect_all)
         self.layers.append(layer)
         return layer
+
 else:
     def add_bounding_boxes(self, *args, **kwargs):
         layer = BoundingBoxLayer(*args, **kwargs)

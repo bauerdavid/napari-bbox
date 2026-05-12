@@ -143,6 +143,11 @@ def finish_drawing_bounding_box(layer: BoundingBoxLayer) -> None:
     """Finish any drawing."""
     layer._finish_drawing()
 
+# [NOTE] unbid first
+action_manager.unbind_shortcut("napari:activate_bb_select_mode")
+action_manager.unbind_shortcut("napari:activate_bb_pan_zoom_mode")
+action_manager.unbind_shortcut("napari:activate_add_bb_mode")
+
 action_manager.bind_shortcut("napari:activate_bb_select_mode", "2")
-action_manager.bind_shortcut("napari:activate_bb_pan_zoom_mode", "3")
-action_manager.bind_shortcut("napari:activate_add_bb_mode", "4")
+action_manager.bind_shortcut("napari:activate_bb_pan_zoom_mode", "4")
+action_manager.bind_shortcut("napari:activate_add_bb_mode", "3")

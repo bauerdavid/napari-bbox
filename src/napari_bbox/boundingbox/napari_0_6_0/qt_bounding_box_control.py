@@ -154,13 +154,11 @@ class QtBoundingBoxControls(QtBoundingBoxControls):
         self.button_group.addButton(self.bounding_box_button)
         self._on_editable_or_visible_change()
 
-        button_row = QHBoxLayout()
-        button_row.addWidget(self.delete_button)
-        button_row.addWidget(self.select_button)
-        button_row.addWidget(self.panzoom_button)
-        button_row.addWidget(self.bounding_box_button)
-        button_row.setContentsMargins(0, 0, 0, 5)
-        button_row.setSpacing(4)
+        self.button_grid.addWidget(self.delete_button, 0, 3)
+        self.button_grid.addWidget(self.select_button, 0, 5)
+        self.button_grid.addWidget(self.panzoom_button, 0, 6)
+        self.transform_button.setEnabled(False)
+        self.button_grid.addWidget(self.bounding_box_button, 0, 4)
 
         bb_size_mode_combobox = QComboBox()
         bb_size_mode_combobox.addItem("average")
@@ -214,7 +212,6 @@ class QtBoundingBoxControls(QtBoundingBoxControls):
         text_disp_cb.stateChanged.connect(self.change_text_visibility)
         self.textDispCheckBox = text_disp_cb
 
-        self.layout().addRow(button_row)
         self.layout().addRow(trans._('opacity:'), self.opacitySlider)
         self.layout().addRow(trans._('edge width:'), self.widthSlider)
         self.layout().addRow(trans._('blending:'), self.blendComboBox)
@@ -227,8 +224,10 @@ class QtBoundingBoxControls(QtBoundingBoxControls):
         self.layout().addRow(trans._('text color:'), self.textColorEdit)
         self.layout().addRow(trans._('text size:'), self.textSlider)
 
-    def _on_opacity_change(self, value):
-        self.layer.opacity = float(value)
+    def _on_opacity_change(self, _=None):
+        value = self.opacitySlider.value()
+        if self.layer.opacity != value:
+            self.layer.opacity = value
 
     def _on_layer_opacity_change(self, event=None):
         if hasattr(self, "opacitySlider"):

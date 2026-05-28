@@ -1,4 +1,4 @@
-__version__ = "0.0.9"
+__version__ = "0.1.1"
 from packaging import version
 from napari import layers
 layers.NAMES.add("boundingboxlayer")

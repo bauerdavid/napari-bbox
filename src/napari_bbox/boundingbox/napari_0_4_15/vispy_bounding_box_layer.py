@@ -23,6 +23,7 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
         super().__init__(layer, node)
 
         self.layer.events.edge_width.connect(self._on_data_change)
+        self.layer.events.pixel_size.connect(self._on_data_change)
         self.layer.events.edge_color.connect(self._on_data_change)
         self.layer.events.face_color.connect(self._on_data_change)
         self.layer.text.events.connect(self._on_text_change)
@@ -39,12 +40,20 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
     def _on_data_change(self, event=None):
         faces = self.layer._data_view._mesh.displayed_triangles
         colors = self.layer._data_view._mesh.displayed_triangles_colors
-        vertices = self.layer._data_view._mesh.vertices
+        vertices = self._edge_widened_vertices()
 
         # Note that the indices of the vertices need to be reversed to
         # go from numpy style to xyz
         if vertices is not None:
             vertices = vertices[:, ::-1]
+
+        # Fully transparent triangles (e.g. the default 'transparent' face)
+        # would still write to the depth buffer in 3D and occlude anything
+        # drawn behind them, so they are not passed to the mesh at all
+        if len(faces) and len(colors) == len(faces):
+            visible = colors[:, 3] > 0
+            faces = faces[visible]
+            colors = colors[visible]
 
         if len(vertices) == 0 or len(faces) == 0:
             vertices = np.zeros((3, layer_ndisplay(self.layer)))
@@ -66,6 +75,30 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
         self._on_matrix_change()
         self._update_text(update_node=False)
         self.node.update()
+
+    def _edge_widened_vertices(self):
+        """Mesh vertices with every edge at least one screen pixel wide.
+
+        Edges thinner than a pixel can fall between pixel centers and not be
+        drawn at all, e.g. a 1 unit wide edge when zoomed out.
+        """
+        mesh = self.layer._data_view._mesh
+        vertices = mesh.vertices
+        min_width = self.layer._min_edge_width()
+        if vertices is None or len(vertices) == 0 or min_width <= 0:
+            return vertices
+        edge = mesh.vertices_index[:, 1] == 1
+        edge_widths = np.array(
+            [bb.edge_width for bb in self.layer._data_view.bounding_boxes]
+        )
+        widths = edge_widths[mesh.vertices_index[edge, 0]]
+        if np.all(widths >= min_width):
+            return vertices
+        vertices = vertices.copy()
+        vertices[edge] = mesh.vertices_centers[edge] + np.maximum(
+            widths, min_width
+        )[:, np.newaxis] * mesh.vertices_offsets[edge]
+        return vertices
 
     def _on_highlight_change(self, event=None):
         settings = get_settings()

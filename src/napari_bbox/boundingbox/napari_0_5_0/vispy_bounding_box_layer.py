@@ -18,6 +18,7 @@ class VispyBoundingBoxLayer(VispyBoundingBoxLayer):
         VispyBaseLayer.__init__(self, layer, node)
 
         self.layer.events.edge_width.connect(self._on_data_change)
+        self.layer.events.pixel_size.connect(self._on_data_change)
         self.layer.events.edge_color.connect(self._on_data_change)
         self.layer.events.face_color.connect(self._on_data_change)
         self.layer.text.events.connect(self._on_text_change)

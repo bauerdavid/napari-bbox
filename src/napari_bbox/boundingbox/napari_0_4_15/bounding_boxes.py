@@ -344,7 +344,8 @@ class BoundingBoxLayer(Layer):
             highlight=Event,
             size_mode=Event,
             size_multiplier=Event,
-            size_constant=Event
+            size_constant=Event,
+            pixel_size=Event
         )
         self._allow_thumbnail_update = True
 
@@ -1921,6 +1922,21 @@ class BoundingBoxLayer(Layer):
             self.text.refresh_text(self.properties)
         else:
             self.text.refresh(self.features)
+
+    def _update_draw(self, scale_factor, *args, **kwargs):
+        """Update canvas scale and notify the visual when the zoom changed,
+        so that edges can be kept at least one screen pixel wide."""
+        changed = scale_factor != self.scale_factor
+        super()._update_draw(scale_factor, *args, **kwargs)
+        if changed and layer_ndisplay(self) == 2:
+            self.events.pixel_size()
+
+    def _min_edge_width(self):
+        """Width of one screen pixel in data units in 2D, 0 in 3D."""
+        if layer_ndisplay(self) != 2:
+            return 0
+        scale = np.abs(np.asarray(self.scale)[layer_dims_displayed(self)])
+        return self.scale_factor / scale.min()
 
     def _set_view_slice(self):
         """Set the view given the slicing indices."""

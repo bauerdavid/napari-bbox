@@ -409,7 +409,8 @@ class BoundingBoxLayer(BoundingBoxLayer):
             feature_defaults=Event,
             size_mode=Event,
             size_multiplier=Event,
-            size_constant=Event
+            size_constant=Event,
+            pixel_size=Event
         )
 
         # Flag set to false to block thumbnail refresh

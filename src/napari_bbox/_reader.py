@@ -96,6 +96,6 @@ def read_bbox(path):
     # Optional kwargs for the corresponding viewer.add_* method
     add_kwargs = {}
 
-    layer_type = "bounding_boxes"  # optional, default is "image"
+    layer_type = "boundingboxlayer"  # optional, default is "image"
 
     return [(bounding_box_corner_list, add_kwargs, layer_type)]

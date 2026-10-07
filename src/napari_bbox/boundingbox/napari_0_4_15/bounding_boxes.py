@@ -1392,6 +1392,11 @@ class BoundingBoxLayer(Layer):
         return np.where(self._data_view._displayed)[0]
 
     @property
+    def _view_indices(self):
+        # name used by napari >= 0.9
+        return self._indices_view
+
+    @property
     def _view_text(self) -> np.ndarray:
         """Get the values of the text elements in view
 

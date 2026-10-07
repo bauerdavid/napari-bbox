@@ -310,6 +310,14 @@ def triangulate_edge(path, closed=False):
     return centers, offsets, triangles
 
 
+def _cross_2d(x, y):
+    """z component of the cross product of two 2D vectors
+
+    np.cross support for 2D vectors was deprecated in numpy 2.0 and removed later
+    """
+    return x[0] * y[1] - x[1] * y[0]
+
+
 def generate_2D_edge_meshes(path, closed=False, limit=3, bevel=False):
     """Determines the triangulation of a path in 2D. The resulting `offsets`
     can be multiplied by a `width` scalar and be added to the resulting
@@ -413,7 +421,7 @@ def generate_2D_edge_meshes(path, closed=False, limit=3, bevel=False):
                 a = vertex_offsets[m + 1]
                 b = vertex_offsets[1]
                 ray = full_path[i] - full_path[i - 1]
-                if np.cross(a, ray) * np.cross(b, ray) > 0:
+                if _cross_2d(a, ray) * _cross_2d(b, ray) > 0:
                     triangles.append([m, m + 1, 1])
                     triangles.append([m, 0, 1])
                 else:
@@ -427,7 +435,7 @@ def generate_2D_edge_meshes(path, closed=False, limit=3, bevel=False):
                 a = vertex_offsets[m + 1]
                 b = vertex_offsets[m + 3]
                 ray = full_path[i] - full_path[i - 1]
-                if np.cross(a, ray) * np.cross(b, ray) > 0:
+                if _cross_2d(a, ray) * _cross_2d(b, ray) > 0:
                     triangles.append([m, m + 1, m + 3])
                     triangles.append([m, m + 2, m + 3])
                 else:
@@ -446,7 +454,7 @@ def generate_2D_edge_meshes(path, closed=False, limit=3, bevel=False):
             a = vertex_offsets[m + 1]
             b = vertex_offsets[m + 3]
             ray = full_path[i] - full_path[i - 1]
-            if np.cross(a, ray) * np.cross(b, ray) > 0:
+            if _cross_2d(a, ray) * _cross_2d(b, ray) > 0:
                 triangles.append([m, m + 1, m + 3])
                 triangles.append([m, m + 2, m + 3])
             else:
@@ -462,7 +470,7 @@ def generate_2D_edge_meshes(path, closed=False, limit=3, bevel=False):
             a = vertex_offsets[m + 1]
             b = vertex_offsets[m + 3]
             ray = full_path[i] - full_path[i - 1]
-            if np.cross(a, ray) * np.cross(b, ray) > 0:
+            if _cross_2d(a, ray) * _cross_2d(b, ray) > 0:
                 triangles.append([m, m + 1, m + 3])
                 triangles.append([m, m + 2, m + 3])
             else:

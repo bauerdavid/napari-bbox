@@ -40,21 +40,25 @@ if NAPARI_VERSION >= "0.4.18":
         layer.mouse_drag_callbacks.append(revert_last_dim_point_cb(self))
         self.dims.events.current_step.connect(store_cb)
 
+        # viewer.camera is deprecated in favour of viewer.scene.camera since napari 0.9
+        scene = getattr(self, 'scene', None)
+        camera = scene.camera if scene is not None else self.camera
+
         def update_view_direction(e=None):
             # Face handles facing the camera are hidden in 3D, so keep the
             # layer up to date while the camera rotates
             if self.dims.ndisplay != 3:
                 return
             view_direction = np.zeros(self.dims.ndim)
-            view_direction[list(self.dims.displayed)] = self.camera.view_direction
+            view_direction[list(self.dims.displayed)] = camera.view_direction
             layer._update_view_direction_3d(view_direction)
-        self.camera.events.angles.connect(update_view_direction)
+        camera.events.angles.connect(update_view_direction)
         self.dims.events.ndisplay.connect(update_view_direction)
 
         def disconnect_all(e):
             if e.value is not layer:
                 return
-            self.camera.events.angles.disconnect(update_view_direction)
+            camera.events.angles.disconnect(update_view_direction)
             self.dims.events.ndisplay.disconnect(update_view_direction)
             self.dims.events.range.disconnect(store_cb)
             self.dims.events.current_step.disconnect(store_cb)

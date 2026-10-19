@@ -112,3 +112,20 @@ def resize_bounds(lo, hi, handle, distance, min_size):
     else:
         lo[axis] = min(lo[axis] + distance, hi[axis] - min_size)
     return lo, hi
+
+
+def axis_parameter_under_ray(point, axis, ray_origin, ray_direction):
+    """Parameter of the point on a line closest to a ray.
+
+    The line is ``point + s * axis``. Following the closest point while the
+    mouse moves keeps a dragged face handle under the cursor. Returns ``None``
+    if the line is (nearly) parallel to the ray.
+    """
+    ray_direction = ray_direction / np.linalg.norm(ray_direction)
+    a = axis @ axis
+    b = axis @ ray_direction
+    denominator = a - b * b
+    if denominator <= 1e-9 * a:
+        return None
+    offset = point - ray_origin
+    return (b * (ray_direction @ offset) - axis @ offset) / denominator

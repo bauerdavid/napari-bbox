@@ -410,6 +410,11 @@ def _select_3d(layer, event):
     start_data = layer.world_to_data(start_position)[dims]
     edited = sorted(layer.selected_data) if handle is None else [index]
     start_los, start_his = layer._box_bounds_3d(edited)
+    if handle is not None:
+        handle_line = layer._handle_axis_line_3d(index, handle)
+        handle_start = layer._handle_axis_parameter_3d(
+            handle_line, start_position, event.view_direction
+        )
     layer._select_drag_active = True
     yield
 
@@ -427,18 +432,16 @@ def _select_3d(layer, event):
                 layer._set_highlight()
         elif handle is not None:
             # Resize: move the grabbed face along its axis
+            # The face follows the point of its axis closest to the ray under
+            # the cursor, so the grabbed point stays under the cursor
             axis = handle // 2
-            vector = np.zeros(3)
-            vector[axis] = 1
-            distance = layer.projected_distance_from_mouse_drag(
-                start_position=start_position,
-                end_position=np.asarray(event.position),
-                view_direction=np.asarray(event.view_direction),
-                vector=vector,
-                dims_displayed=dims,
+            current = layer._handle_axis_parameter_3d(
+                handle_line, event.position, event.view_direction
             )
-            # a scalar or a (1,) array depending on the napari version
-            distance = float(np.ravel(distance)[0])
+            if current is None or handle_start is None:
+                yield
+                continue
+            distance = current - handle_start
             if not is_moving:
                 _emit_data_event(layer, edited, changing=True)
             is_moving = layer._is_moving = True

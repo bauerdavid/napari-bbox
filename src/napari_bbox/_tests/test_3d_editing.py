@@ -46,26 +46,27 @@ def _layer_3d(*boxes):
     return layer
 
 
-def _event(event_type, position, modifiers=()):
+def _event(event_type, position, modifiers=(), view_direction=VIEW_DIRECTION):
     return ReadOnlyWrapper(
         Event(
             type=event_type,
             is_dragging=event_type == 'mouse_move',
             modifiers=list(modifiers),
             position=tuple(float(p) for p in position),
-            view_direction=VIEW_DIRECTION,
+            view_direction=tuple(view_direction),
             up_direction=UP_DIRECTION,
             dims_displayed=[0, 1, 2],
         )
     )
 
 
-def _drag(layer, path, modifiers=()):
+def _drag(layer, path, modifiers=(), view_direction=VIEW_DIRECTION):
     """Press at the first position, move through the rest, then release."""
-    mouse_press_callbacks(layer, _event('mouse_press', path[0], modifiers))
+    kwargs = {'modifiers': modifiers, 'view_direction': view_direction}
+    mouse_press_callbacks(layer, _event('mouse_press', path[0], **kwargs))
     for position in path[1:]:
-        mouse_move_callbacks(layer, _event('mouse_move', position, modifiers))
-    mouse_release_callbacks(layer, _event('mouse_release', path[-1], modifiers))
+        mouse_move_callbacks(layer, _event('mouse_move', position, **kwargs))
+    mouse_release_callbacks(layer, _event('mouse_release', path[-1], **kwargs))
 
 
 def _box(layer, index):
@@ -227,3 +228,46 @@ def test_space_pressed_mid_drag_stops_editing():
     np.testing.assert_allclose(lo, [0, 10, 0])
     assert layer.selected_data == {0}
     assert not layer._select_drag_active
+
+
+def test_axis_parameter_under_ray():
+    point, axis = np.array([0.0, 0, 0]), np.array([0.0, 0, 2])
+    direction = np.array([1.0, 0, 1]) / np.sqrt(2)
+    # the ray passes through the point at s = 5 (z = 10)
+    s = bbox_3d.axis_parameter_under_ray(point, axis, np.array([0.0, 0, 10]), direction)
+    assert s == pytest.approx(5)
+    assert bbox_3d.axis_parameter_under_ray(point, axis, point, np.array([0.0, 0, 1])) is None
+
+
+@pytest.mark.parametrize('scale', [(1, 1, 1), (2, 1, 0.5)])
+def test_face_handle_stays_under_cursor_in_oblique_view(scale):
+    layer = _layer_3d(([0, 0, 0], [100, 100, 100]))
+    layer.scale = scale
+    # the dragged face's axis is oblique to the view direction (63 degrees),
+    # so the face would lag behind the cursor with a plain drag projection
+    view = np.array([1.0, 0, 0.5]) / np.linalg.norm([1.0, 0, 0.5])
+    world = lambda p: np.asarray(p, float) * scale
+    _drag(layer, [world((50, 50, 50))], view_direction=view)
+    assert layer.selected_data == {0}
+    # rays through the handle of the upper face along the last axis, as it
+    # moves from 100 to 130
+    _drag(
+        layer,
+        [world((50, 50, 100)), world((50, 50, 115)), world((50, 50, 130))],
+        view_direction=view,
+    )
+    lo, hi = _box(layer, 0)
+    np.testing.assert_allclose(hi, [100, 100, 130])
+    np.testing.assert_allclose(lo, [0, 0, 0])
+
+
+def test_handle_on_lower_data_edge_can_be_dragged_edge_on():
+    layer = _layer_3d(([0, 0, 0], [100, 100, 100]))
+    _drag(layer, [(50, 50, 50)])
+    # The handle of the lower face along the last axis lies on the edge of the
+    # layer extent. Pressing just outside the extent, but on the handle, must
+    # still grab it
+    _drag(layer, [(50, 50, -2), (50, 50, -17), (50, 50, -32)])
+    lo, hi = _box(layer, 0)
+    np.testing.assert_allclose(lo, [0, 0, -30])
+    np.testing.assert_allclose(hi, [100, 100, 100])

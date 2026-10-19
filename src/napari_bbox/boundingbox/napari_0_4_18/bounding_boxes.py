@@ -1174,6 +1174,25 @@ class BoundingBoxLayer(BoundingBoxLayer):
             return None, None
         return int(displayed[picked]), None
 
+    def get_ray_intersections(
+        self, position, view_direction, dims_displayed, world=True
+    ):
+        start_point, end_point = super().get_ray_intersections(
+            position, view_direction, dims_displayed, world
+        )
+        if start_point is None and self._is_3d_editable:
+            # The ray misses the data extent. Face handles sit on the extent
+            # edge, so a click on the outer half of a handle lands here and
+            # the plain cursor ray is used instead
+            position = np.asarray(position, dtype=float)
+            view_direction = np.asarray(view_direction, dtype=float)
+            if world:
+                position = self.world_to_data(position)
+                view_direction = self._world_to_data_ray(view_direction)
+            start_point = np.asarray(position, dtype=float)
+            end_point = start_point + view_direction
+        return start_point, end_point
+
     @property
     def _is_3d_editable(self):
         """bool: True if three dimensions of the layer are displayed."""
@@ -1232,6 +1251,38 @@ class BoundingBoxLayer(BoundingBoxLayer):
             return None
         nearest = hits[np.argmin(t[hits])]
         return index, int(handle_ids[nearest])
+
+    def _handle_axis_line_3d(self, index, handle):
+        """Line along which a face handle moves, in displayed world coords.
+
+        Returns the handle position and the world vector of one data unit
+        along the handle axis.
+        """
+        dims = list(self._slice_input.displayed)
+        axis = handle // 2
+        los, his = self._box_bounds_3d([index])
+        point = self._data_view.bounding_boxes[index].data.min(axis=0)
+        point[dims] = bbox_3d.face_handles(los[0], his[0])[handle]
+        step = np.zeros(self.ndim)
+        step[dims[axis]] = 1
+        point_world = np.asarray(self.data_to_world(point))
+        axis_world = np.asarray(self.data_to_world(point + step)) - point_world
+        return point_world[dims], axis_world[dims]
+
+    def _handle_axis_parameter_3d(self, line, position, view_direction):
+        """Position along a handle axis line under the cursor, in data units.
+
+        Parameters
+        ----------
+        line : tuple of np.ndarray
+            Handle position and axis vector from `_handle_axis_line_3d`.
+        position, view_direction : array-like
+            Cursor position and view direction in world coordinates.
+        """
+        dims = list(self._slice_input.displayed)
+        position = np.asarray(position)[-self.ndim:][dims]
+        view_direction = np.asarray(view_direction)[-self.ndim:][dims]
+        return bbox_3d.axis_parameter_under_ray(*line, position, view_direction)
 
     def _min_box_size_3d(self, axis):
         """Smallest extent a box can be resized to along a displayed axis."""

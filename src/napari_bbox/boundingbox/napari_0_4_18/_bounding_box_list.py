@@ -98,7 +98,9 @@ class BoundingBoxList(BoundingBoxList):
         # The list slice key is repeated to check against both the min and
         # max values stored in the shapes slice key.
         slice_key = np.array(self.slice_key)
-        if len(slice_key) != self.slice_keys.shape[-1]:
+        # without bounding boxes there are no slice keys to compare with, but the displayed
+        # state still has to be cleared, e.g. after the last bounding box was removed
+        if len(self.bounding_boxes) > 0 and len(slice_key) != self.slice_keys.shape[-1]:
             return
         # Slice key must exactly match mins and maxs of shape as then the
         # shape is entirely contained within the current slice.

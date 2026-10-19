@@ -40,7 +40,7 @@ def hold_to_lock_aspect_ratio(layer: BoundingBoxLayer):
             layer._aspect_ratio = 1
     else:
         layer._aspect_ratio = 1
-    if layer._is_moving:
+    if layer._is_moving and not layer._is_3d_editable:
         assert layer._moving_coordinates is not None, layer
         _move_active_element_under_cursor(layer, layer._moving_coordinates)
 

@@ -198,6 +198,10 @@ class QtBoundingBoxControls(QtBoundingBoxControls):
         self.button_group.addButton(self.select_button)
         self.button_group.addButton(self.panzoom_button)
         self.button_group.addButton(self.bounding_box_button)
+        # Keep keyboard focus on the canvas when a mode button is clicked, so that
+        # holding Space pans/rotates the view instead of pressing the button
+        for button in (*self._EDIT_BUTTONS, self.panzoom_button):
+            button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._on_editable_or_visible_change()
 
         button_row = QHBoxLayout()
@@ -316,18 +320,25 @@ class QtBoundingBoxControls(QtBoundingBoxControls):
         self.layer.text.visible = Qt.CheckState(state) == Qt.CheckState.Checked
 
     def _on_ndisplay_changed(self):
-        self.layer.editable = self.ndisplay == 2
+        # Bounding boxes can be edited in 3D when the layer has 3 or more dims
+        self.layer.editable = self.ndisplay == 2 or self.layer.ndim >= 3
+        self._on_editable_or_visible_change()
 
-    def _on_editable_or_visible_change(self):
+    def _on_editable_or_visible_change(self, event=None):
+        """Receive layer model editable/visible change event & enable/disable buttons."""
         if hasattr(super(), "_on_editable_or_visible_change"):
             super()._on_editable_or_visible_change()
-            return
-        """Receive layer model editable/visible change event & enable/disable buttons."""
-        set_widgets_enabled_with_opacity(
-            self,
-            self._EDIT_BUTTONS,
-            self.layer.editable and self.layer.visible,
-        )
+        else:
+            set_widgets_enabled_with_opacity(
+                self,
+                self._EDIT_BUTTONS,
+                self.layer.editable and self.layer.visible,
+            )
+        if getattr(self, 'ndisplay', 2) != 2:
+            # Adding bounding boxes is only supported in 2D
+            set_widgets_enabled_with_opacity(
+                self, (self.bounding_box_button,), False
+            )
 
 
 from napari._qt.layer_controls.qt_layer_controls_container import layer_to_controls

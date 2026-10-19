@@ -27,6 +27,8 @@ from ._bounding_box_mouse_bindings import (
 from ._bounding_box_utils import (
     number_of_bounding_boxes,
 )
+from . import _bounding_box_3d as bbox_3d
+from napari.layers.points._points_utils import _create_box_from_corners_3d
 from ..napari_0_4_15.bounding_boxes import BoundingBoxLayer
 from ..._helper_functions import layer_slice_indices, layer_dims_order, layer_ndisplay, layer_dims_not_displayed
 from ..._utils import NAPARI_VERSION
@@ -466,6 +468,11 @@ class BoundingBoxLayer(BoundingBoxLayer):
         self._is_selecting = False
         self._drag_box = None
         self._drag_box_stored = None
+        # 3D editing: camera directions in displayed data coordinates
+        self._view_direction_3d = None
+        self._drag_normal = None
+        self._drag_up = None
+        self._select_drag_active = False
         self._is_creating = False
         self._clipboard = {}
 
@@ -755,20 +762,27 @@ class BoundingBoxLayer(BoundingBoxLayer):
 
     @mode.setter
     def mode(self, mode: Union[str, Mode]):
+        if Mode(mode) == Mode.ADD_BOUNDING_BOX and self._is_3d_editable:
+            # Adding bounding boxes is only supported in 2D
+            return
         mode = self._mode_setter_helper(mode)
         if mode == self._mode:
             return
 
+        old_mode = self._mode
         self._mode = mode
         self.events.mode(mode=mode)
 
-        draw_modes = {
+        # The selection survives switching between these modes, e.g. while
+        # holding Space to pan or rotate the view, as in the points layer
+        keep_selection_modes = {
             Mode.SELECT,
+            Mode.PAN_ZOOM,
         }
 
         # don't update thumbnail on mode changes
         with self.block_thumbnail_update():
-            if not (mode in draw_modes and self._mode in draw_modes):
+            if not (mode in keep_selection_modes and old_mode in keep_selection_modes):
                 # BoundingBoxLayer._finish_drawing() calls BoundingBoxLayer.refresh()
                 self._finish_drawing()
             else:
@@ -1127,18 +1141,181 @@ class BoundingBoxLayer(BoundingBoxLayer):
 
         Returns
         -------
-        value
-            The data value along the supplied ray.
-        vertex : None
-            Index of vertex if any that is at the coordinates. Always returns `None`.
+        bounding box : int | None
+            Index of the bounding box under the ray, if any.
+        handle : int | None
+            Index of the face handle of the selected bounding box under the
+            ray, if any. See `_bounding_box_3d` for the handle numbering.
         """
-        value, _ = self._get_index_and_intersection(
-            start_point=start_point,
-            end_point=end_point,
-            dims_displayed=dims_displayed,
-        )
+        if self._is_moving:
+            return self._moving_value
+        if start_point is None or end_point is None or not self._is_3d_editable:
+            return None, None
 
-        return value, None
+        dims = list(dims_displayed)
+        origin = np.asarray(start_point)[dims]
+        direction = np.asarray(end_point)[dims] - origin
+        norm = np.linalg.norm(direction)
+        if norm == 0:
+            return None, None
+        direction = direction / norm
+        self._view_direction_3d = direction
+
+        handle_value = self._pick_handle_3d(origin, direction)
+        if handle_value is not None:
+            return handle_value
+
+        displayed = np.nonzero(self._data_view._displayed)[0]
+        if len(displayed) == 0:
+            return None, None
+        los, his = self._box_bounds_3d(displayed)
+        picked = bbox_3d.pick_box(origin, direction, los, his)
+        if picked is None:
+            return None, None
+        return int(displayed[picked]), None
+
+    @property
+    def _is_3d_editable(self):
+        """bool: True if three dimensions of the layer are displayed."""
+        return len(self._slice_input.displayed) == 3
+
+    def _box_bounds_3d(self, indices):
+        """(n, 3) lower and upper corners of boxes in the displayed dims."""
+        dims = list(self._slice_input.displayed)
+        bounds = [
+            bbox_3d.box_bounds(self._data_view.bounding_boxes[i].data, dims)
+            for i in indices
+        ]
+        if not bounds:
+            return np.empty((0, 3)), np.empty((0, 3))
+        los, his = zip(*bounds)
+        return np.array(los), np.array(his)
+
+    def _set_box_bounds_3d(self, index, lo, hi):
+        """Set the extent of a box in the displayed dims."""
+        dims = list(self._slice_input.displayed)
+        data = self._data_view.bounding_boxes[index].data
+        self._data_view.edit(index, bbox_3d.set_box_bounds(data, dims, lo, hi))
+
+    def _handle_box_index_3d(self):
+        """Index of the box showing face handles, or None.
+
+        Handles are shown only when a single box is selected.
+        """
+        if self._mode != Mode.SELECT or len(self.selected_data) != 1:
+            return None
+        return next(iter(self.selected_data))
+
+    def _visible_handles_3d(self, index):
+        """Positions and indices of the face handles of a box."""
+        los, his = self._box_bounds_3d([index])
+        handles = bbox_3d.face_handles(los[0], his[0])
+        visible = bbox_3d.visible_handles(self._view_direction_3d)
+        return handles[visible], visible
+
+    def _pick_handle_3d(self, origin, direction):
+        """Value of the face handle under a ray, or None."""
+        index = self._handle_box_index_3d()
+        if index is None:
+            return None
+        handles, handle_ids = self._visible_handles_3d(index)
+        if len(handles) == 0:
+            return None
+        t, offsets = bbox_3d.ray_point_offsets(origin, direction, handles)
+        # Handles are drawn with a fixed size in screen pixels, so compare
+        # distances in world units
+        scale = np.abs(np.asarray(self.scale)[list(self._slice_input.displayed)])
+        distances = np.linalg.norm(offsets * scale, axis=1)
+        radius = self._vertex_size * self.scale_factor
+        hits = np.nonzero(distances <= radius)[0]
+        if len(hits) == 0:
+            return None
+        nearest = hits[np.argmin(t[hits])]
+        return index, int(handle_ids[nearest])
+
+    def _min_box_size_3d(self, axis):
+        """Smallest extent a box can be resized to along a displayed axis."""
+        dim = list(self._slice_input.displayed)[axis]
+        threshold = self._vertex_size * self.scale_factor / abs(self.scale[dim])
+        return max(threshold, 1e-6)
+
+    def _update_view_direction_3d(self, view_direction_world):
+        """Update the camera view direction used to hide face handles.
+
+        Parameters
+        ----------
+        view_direction_world : np.ndarray
+            View direction of the camera in nD world coordinates.
+        """
+        if not self._is_3d_editable:
+            return
+        self._view_direction_3d = self._world_to_displayed_data_ray(
+            view_direction_world, list(self._slice_input.displayed)
+        )
+        if self._handle_box_index_3d() is not None:
+            self._set_highlight(force=True)
+
+    def interaction_box(self, index):
+        # The 2D interaction box has no meaning in 3D, boxes are edited
+        # through face handles instead
+        if self._is_3d_editable:
+            return None
+        return super().interaction_box(index)
+
+    def _set_view_slice(self):
+        super()._set_view_slice()
+        if self._is_3d_editable and self._mode == Mode.ADD_BOUNDING_BOX:
+            self.mode = Mode.SELECT
+
+    def _outline_bounding_boxes(self):
+        if not self._is_3d_editable:
+            return super()._outline_bounding_boxes()
+        index = set(self.selected_data)
+        if self._value is not None and self._value[0] is not None:
+            index.add(self._value[0])
+        if not index:
+            return None, None
+        index = sorted(index)
+        centers, offsets, triangles = self._data_view.outline(index)
+        # Edges are as wide as their edge width in data units in 3D, so the
+        # outline has to be wider than the edges to be visible
+        edge_width = max(self._data_view.bounding_boxes[i].edge_width for i in index)
+        width = edge_width + 2 * self.scale_factor * self._highlight_width
+        vertices = (centers + width * offsets)[:, ::-1]
+        return vertices, triangles
+
+    def _compute_vertices_and_box(self):
+        if not self._is_3d_editable:
+            return super()._compute_vertices_and_box()
+
+        vertices = np.empty((0, 3))
+        face_color = 'white'
+        edge_color = self._highlight_color
+        pos = None
+        width = 0
+
+        index = self._handle_box_index_3d()
+        if index is not None:
+            handles, handle_ids = self._visible_handles_3d(index)
+            vertices = handles[:, ::-1]
+            hovered = self._value is not None and self._value[0] == index
+            if hovered and self._value[1] is not None:
+                face_color = np.array(
+                    [
+                        transform_color(self._highlight_color)[0]
+                        if k == self._value[1]
+                        else transform_color('white')[0]
+                        for k in handle_ids
+                    ]
+                )
+        elif self._is_selecting and self._drag_normal is not None:
+            box = _create_box_from_corners_3d(
+                self._drag_box, self._drag_normal, self._drag_up
+            )
+            pos = box[[0, 1, 2, 3, 0]][:, ::-1]
+            width = 1.5
+
+        return vertices, face_color, edge_color, pos, width
 
     def _get_index_and_intersection(
         self,

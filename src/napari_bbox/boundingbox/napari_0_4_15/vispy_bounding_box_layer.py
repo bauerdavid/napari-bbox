@@ -192,6 +192,29 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
         self._on_highlight_change()
         self._on_blending_change()
 
+    def _hand_drag_to_camera(self, event=None):
+        """Let the camera take over a select drag when Space is pressed.
+
+        Vispy only sends the moves of a drag to the node that accepted the
+        mouse press. A drag that started in select mode was refused by the
+        camera, so holding Space mid-drag would not rotate or pan the view
+        until the mouse is pressed again.
+        """
+        if self.layer.mode != 'pan_zoom' or not getattr(
+            self.layer, '_select_drag_active', False
+        ):
+            return
+        canvas = self.node.canvas
+        viewbox = self.node.parent
+        while viewbox is not None and not hasattr(viewbox, 'camera'):
+            viewbox = viewbox.parent
+        if canvas is None or viewbox is None:
+            return
+        if getattr(canvas, '_mouse_handler', None) is None:
+            canvas._mouse_handler = viewbox
+            # Start rotating/panning from the current mouse position
+            viewbox.camera._event_value = None
+
     def close(self):
         """Vispy visual is closing."""
         disconnect_events(self.layer.text.events, self)

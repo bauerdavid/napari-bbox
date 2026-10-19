@@ -14,7 +14,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from napari.layers.base._base_constants import ActionType
+from napari.layers.points._points_utils import _points_in_box_3d
 
+from . import _bounding_box_3d as bbox_3d
 from ..napari_0_4_15._bounding_box_constants import Box, Mode
 from ..._utils import NAPARI_VERSION
 
@@ -39,6 +41,10 @@ def select(layer, event) -> None:
     event: MouseEvent
         A proxy read only wrapper around a vispy mouse event.
     """
+    if layer._is_3d_editable:
+        yield from _select_3d(layer, event)
+        return
+
     shift = 'Shift' in event.modifiers
     # on press
     value = layer.get_value(event.position, world=True) or (None, None)
@@ -340,3 +346,184 @@ def _move_active_element_under_cursor(
 
 
 
+
+
+def _emit_data_event(layer, indices, changing: bool) -> None:
+    """Emit a data event for boxes that are being or have been edited."""
+    indices = tuple(indices)
+    vertex_indices = tuple(
+        tuple(range(len(layer.data[i]))) for i in indices
+    )
+    if NAPARI_VERSION >= "0.4.19":
+        action = ActionType.CHANGING if changing else ActionType.CHANGED
+    elif changing:
+        return
+    else:
+        action = ActionType.CHANGE.value
+    layer.events.data(
+        value=layer.data,
+        action=action,
+        data_indices=indices,
+        vertex_indices=vertex_indices,
+    )
+
+
+def _select_3d(layer, event):
+    """Select, move and resize bounding boxes in a 3D view.
+
+    Follows the selection behavior of the napari points layer:
+
+    * Clicking a box selects it, holding Shift or Control toggles it.
+    * Dragging a selected box moves all selected boxes in the plane parallel
+      to the canvas.
+    * Dragging a face handle of a single selected box moves that face along
+      its axis.
+    * Dragging on empty space draws a selection box. Boxes whose center falls
+      inside it get selected.
+    """
+    dims = list(layer._slice_input.displayed)
+    modify_selection = (
+        'Shift' in event.modifiers or 'Control' in event.modifiers
+    )
+
+    # on press
+    value = layer.get_value(
+        event.position,
+        view_direction=event.view_direction,
+        dims_displayed=event.dims_displayed,
+        world=True,
+    ) or (None, None)
+    index, handle = value
+    if handle is None:
+        if modify_selection:
+            if index is not None:
+                layer.selected_data = layer.selected_data ^ {index}
+        elif index is not None:
+            if index not in layer.selected_data:
+                layer.selected_data = {index}
+        else:
+            layer.selected_data = set()
+    layer._moving_value = copy(value)
+    layer._set_highlight()
+
+    start_position = np.asarray(event.position)
+    start_data = layer.world_to_data(start_position)[dims]
+    edited = sorted(layer.selected_data) if handle is None else [index]
+    start_los, start_his = layer._box_bounds_3d(edited)
+    if handle is not None:
+        handle_line = layer._handle_axis_line_3d(index, handle)
+        handle_start = layer._handle_axis_parameter_3d(
+            handle_line, start_position, event.view_direction
+        )
+    layer._select_drag_active = True
+    yield
+
+    # on move
+    is_moving = False
+    handed_to_camera = False
+    while event.type == 'mouse_move':
+        if handed_to_camera or layer._mode != Mode.SELECT:
+            # Space was pressed during the drag, the camera rotates/pans the
+            # view for the rest of it (see VispyBoundingBoxLayer)
+            if not handed_to_camera:
+                handed_to_camera = True
+                layer._is_selecting = False
+                layer._drag_box = None
+                layer._set_highlight()
+        elif handle is not None:
+            # Resize: move the grabbed face along its axis
+            # The face follows the point of its axis closest to the ray under
+            # the cursor, so the grabbed point stays under the cursor
+            axis = handle // 2
+            current = layer._handle_axis_parameter_3d(
+                handle_line, event.position, event.view_direction
+            )
+            if current is None or handle_start is None:
+                yield
+                continue
+            distance = current - handle_start
+            if not is_moving:
+                _emit_data_event(layer, edited, changing=True)
+            is_moving = layer._is_moving = True
+            lo, hi = bbox_3d.resize_bounds(
+                start_los[0],
+                start_his[0],
+                handle,
+                distance,
+                layer._min_box_size_3d(axis),
+            )
+            layer._set_box_bounds_3d(index, lo, hi)
+            layer.refresh()
+            layer._set_highlight(force=True)
+        elif index is not None and not modify_selection and edited:
+            # Move: shift selected boxes in the plane parallel to the canvas
+            shift = layer.world_to_data(np.asarray(event.position))[dims] - start_data
+            if not is_moving:
+                _emit_data_event(layer, edited, changing=True)
+            is_moving = layer._is_moving = True
+            for i, lo, hi in zip(edited, start_los, start_his):
+                layer._set_box_bounds_3d(i, lo + shift, hi + shift)
+            layer.refresh()
+            layer._set_highlight(force=True)
+        else:
+            # Draw a selection box. A modified click on a box only drags a
+            # selection box, so undo its selection toggle
+            if modify_selection and index is not None and not layer._is_selecting:
+                layer.selected_data = layer.selected_data ^ {index}
+            layer._is_selecting = True
+            coordinates = layer.world_to_data(np.asarray(event.position))[dims]
+            layer._drag_box = np.array([start_data, coordinates])
+            layer._drag_normal = layer._world_to_displayed_data_ray(
+                event.view_direction, dims
+            )
+            layer._drag_up = layer._world_to_displayed_data_ray(
+                event.up_direction, dims
+            )
+            layer._set_highlight()
+        yield
+
+    # on release
+    if is_moving:
+        _emit_data_event(layer, edited, changing=False)
+        if hasattr(layer, '_clear_extent'):
+            layer._clear_extent()
+        layer.events.extent()
+    elif handed_to_camera:
+        pass
+    elif layer._is_selecting:
+        layer.selected_data = _bounding_boxes_in_drag_box_3d(
+            layer, modify_selection
+        )
+    elif not modify_selection and handle is None:
+        layer.selected_data = set() if index is None else {index}
+
+    layer._select_drag_active = False
+    layer._is_moving = False
+    layer._is_selecting = False
+    layer._drag_box = None
+    layer._drag_normal = None
+    layer._drag_up = None
+    layer._moving_value = (None, None)
+    layer._set_highlight(force=True)
+
+    if is_moving:
+        layer._update_thumbnail()
+
+
+def _bounding_boxes_in_drag_box_3d(layer, modify_selection: bool) -> set:
+    """Selection after dragging a selection box in 3D."""
+    displayed = np.nonzero(layer._data_view._displayed)[0]
+    selection = set()
+    if len(displayed) > 0:
+        los, his = layer._box_bounds_3d(displayed)
+        inside = _points_in_box_3d(
+            layer._drag_box,
+            (los + his) / 2,
+            np.zeros(len(displayed)),
+            layer._drag_normal,
+            layer._drag_up,
+        )
+        selection = {int(displayed[i]) for i in inside}
+    if modify_selection:
+        return set(layer.selected_data) ^ selection
+    return selection

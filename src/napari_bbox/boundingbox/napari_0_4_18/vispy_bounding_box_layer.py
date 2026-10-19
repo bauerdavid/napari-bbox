@@ -21,6 +21,7 @@ class VispyBoundingBoxLayer(VispyBoundingBoxLayer):
         self.layer.events.face_color.connect(self._on_data_change)
         self.layer.text.events.connect(self._on_text_change)
         self.layer.events.highlight.connect(self._on_highlight_change)
+        self.layer.events.mode.connect(self._hand_drag_to_camera)
 
         # TODO: move to overlays
         self.node._subvisuals[3].symbol = 'square'

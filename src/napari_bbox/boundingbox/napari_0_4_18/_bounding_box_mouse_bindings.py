@@ -7,6 +7,7 @@ from ..napari_0_4_15._bounding_box_mouse_bindings import (
     _move
 )
 from ..napari_0_4_15._bounding_box_mouse_bindings import _drag_selection_box
+from .._undo_redo import undoable_drag
 
 from copy import copy
 from typing import TYPE_CHECKING
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
     from vispy.app.canvas import MouseEvent
 
 
+@undoable_drag
 def select(layer, event) -> None:
     """Select bounding boxes or vertices either in select mode.
 
@@ -138,6 +140,9 @@ def select(layer, event) -> None:
 
     if update_thumbnail:
         layer._update_thumbnail()
+
+
+add_bounding_box = undoable_drag(add_bounding_box)
 
 
 def _add_bounding_box(

@@ -29,6 +29,24 @@ and review the napari docs for plugin developers:
 https://napari.org/stable/plugins/index.html
 -->
 
+## Undo and redo
+
+Edits of the bounding boxes in the active bounding box layer can be undone with
+<kbd>Ctrl</kbd>+<kbd>Z</kbd> and redone with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>
+(or <kbd>Ctrl</kbd>+<kbd>Y</kbd>), in 2D and in 3D. Adding, moving, resizing,
+deleting and pasting boxes are one undo step each, a mouse drag is one step.
+Selecting boxes is not.
+
+From code, use `layer.undo()`, `layer.redo()`, `layer.can_undo`, `layer.can_redo`
+and `layer.clear_history()`. Undo and redo restore the corners, features, colors,
+edge widths and z-indices of all the boxes and emit the same `layer.events.data`
+events as the edit they are equal to. The last 50 edits are kept.
+
+Setting `layer.data` or `layer.features` from code is not an edit, it is not
+recorded. If it changes the layer the history is cleared, so undo cannot bring
+back boxes from before the change. Adding boxes with `layer.add` and deleting
+them with `layer.remove_selected` are edits.
+
 ## Installation
 
 You can install `napari-bbox` via [pip]:

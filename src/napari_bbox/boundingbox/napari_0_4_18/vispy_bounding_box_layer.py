@@ -7,7 +7,7 @@ from napari._vispy.utils.gl import BLENDING_MODES
 from .vispy_bounding_box_visual import BoundingBoxVisual
 from napari.settings import get_settings
 
-from ..._helper_functions import layer_ndisplay
+from ..._helper_functions import layer_ndisplay, set_line_data
 
 
 class VispyBoundingBoxLayer(VispyBoundingBoxLayer):
@@ -77,8 +77,8 @@ class VispyBoundingBoxLayer(VispyBoundingBoxLayer):
             pos = np.zeros((1, ndisplay))
             width = 0
 
-        self.node._subvisuals[2].set_data(
-            pos=pos, color=edge_color, width=width
+        set_line_data(
+            self.node._subvisuals[2], pos, color=edge_color, width=width
         )
 
     def _on_blending_change(self, event=None):

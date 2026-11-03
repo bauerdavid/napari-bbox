@@ -71,3 +71,16 @@ else:
             return (*order, max(order) + 1)
 
         return order
+
+
+def set_line_data(line, pos, **kwargs):
+    # vispy's GL line visual locks its vertex buffer to the dimensionality of
+    # the first positions it receives, so switching between 2D and 3D
+    # highlights needs a fresh buffer
+    from vispy import gloo
+
+    gl_line = getattr(line, '_line_visual', None)
+    vbo = getattr(gl_line, '_pos_vbo', None)
+    if vbo is not None and vbo._last_dim not in (None, np.shape(pos)[-1]):
+        gl_line._pos_vbo = gloo.VertexBuffer()
+    line.set_data(pos=pos, **kwargs)

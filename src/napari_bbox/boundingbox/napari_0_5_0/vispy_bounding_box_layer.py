@@ -9,7 +9,7 @@ from .vispy_bounding_box_visual import BoundingBoxVisual
 from napari.settings import get_settings
 from napari.utils.events import disconnect_events
 
-from ..._helper_functions import layer_ndisplay
+from ..._helper_functions import layer_ndisplay, set_line_data
 
 
 class VispyBoundingBoxLayer(VispyBoundingBoxLayer):
@@ -81,8 +81,8 @@ class VispyBoundingBoxLayer(VispyBoundingBoxLayer):
             pos = np.zeros((1, ndisplay))
             width = 0
 
-        self.node.highlight_lines.set_data(
-            pos=pos, color=edge_color, width=width
+        set_line_data(
+            self.node.highlight_lines, pos, color=edge_color, width=width
         )
 
     def _get_text_node(self):

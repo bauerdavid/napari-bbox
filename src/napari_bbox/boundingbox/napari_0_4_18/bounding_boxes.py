@@ -30,6 +30,7 @@ from ._bounding_box_utils import (
 from . import _bounding_box_3d as bbox_3d
 from napari.layers.points._points_utils import _create_box_from_corners_3d
 from ..napari_0_4_15.bounding_boxes import BoundingBoxLayer
+from .._undo_redo import UndoRedoMixin, resets_history, undoable
 from ..._helper_functions import layer_slice_indices, layer_dims_order, layer_ndisplay, layer_dims_not_displayed
 from ..._utils import NAPARI_VERSION
 from napari.layers.utils.color_manager_utils import (
@@ -70,7 +71,7 @@ except ImportError:
             ...
 
 
-class BoundingBoxLayer(BoundingBoxLayer):
+class BoundingBoxLayer(UndoRedoMixin, BoundingBoxLayer):
     """Bounding box layer.
 
     Parameters
@@ -415,6 +416,8 @@ class BoundingBoxLayer(BoundingBoxLayer):
             pixel_size=Event
         )
 
+        self._init_history()
+
         # Flag set to false to block thumbnail refresh
         self._allow_thumbnail_update = True
 
@@ -576,6 +579,7 @@ class BoundingBoxLayer(BoundingBoxLayer):
         return self._data_view.data
 
     @data.setter
+    @resets_history
     def data(self, data):
         self._finish_drawing()
         
@@ -788,6 +792,7 @@ class BoundingBoxLayer(BoundingBoxLayer):
             else:
                 self.refresh()
 
+    @undoable
     def add(
         self,
         data,
@@ -1006,6 +1011,13 @@ class BoundingBoxLayer(BoundingBoxLayer):
 
         data_view._update_z_order()
 
+    # replacing the features from code is not an edit of the user
+    features = BoundingBoxLayer.features.setter(
+        resets_history(BoundingBoxLayer.features.fset)
+    )
+    move_to_front = undoable(BoundingBoxLayer.move_to_front)
+    move_to_back = undoable(BoundingBoxLayer.move_to_back)
+
     @property
     def text(self) -> TextManager:
         """TextManager: The TextManager object containing the text properties"""
@@ -1054,6 +1066,7 @@ class BoundingBoxLayer(BoundingBoxLayer):
 
             self.thumbnail = colormapped
 
+    @undoable
     def remove_selected(self):
         """Remove any selected bounding boxes."""
         index = list(self.selected_data)
@@ -1486,6 +1499,7 @@ class BoundingBoxLayer(BoundingBoxLayer):
         else:
             self._clipboard = {}
 
+    @undoable
     def _paste_data(self):
         """Paste any shapes from clipboard and then selects them."""
         cur_bboxes = self.nbounding_boxes

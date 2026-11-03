@@ -1,6 +1,7 @@
 # A copy of napari.layers.shapes._shapes_key_bindings
 import numpy as np
 import napari
+from app_model.types import KeyCode, KeyMod
 from ._bounding_box_mouse_bindings import (
     _move_active_element_under_cursor,
 )
@@ -48,6 +49,19 @@ def hold_to_lock_aspect_ratio(layer: BoundingBoxLayer):
 
     # on key release
     layer._fixed_aspect = False
+
+
+@BoundingBoxLayer.bind_key(KeyMod.CtrlCmd | KeyCode.KeyZ, overwrite=True)
+def undo(layer: BoundingBoxLayer):
+    """Undo the last edit of the bounding boxes."""
+    layer.undo()
+
+
+@BoundingBoxLayer.bind_key(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyZ, overwrite=True)
+@BoundingBoxLayer.bind_key(KeyMod.CtrlCmd | KeyCode.KeyY, overwrite=True)
+def redo(layer: BoundingBoxLayer):
+    """Redo the last undone edit of the bounding boxes."""
+    layer.redo()
 
 
 @register_bounding_box_mode_action(trans._('Transform'))

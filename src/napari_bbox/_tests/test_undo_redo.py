@@ -415,9 +415,6 @@ def _drag_3d(layer, path):
     _drag(layer, path)
 
 
-@pytest.mark.skipif(
-    NAPARI_VERSION < "0.5.0", reason="3D editing is not verified on napari<0.5"
-)
 def test_editing_in_3d():
     layer = _layer_3d(
         [[0, 0, 0], [100, 100, 100]],

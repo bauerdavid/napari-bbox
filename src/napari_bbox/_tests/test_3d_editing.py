@@ -21,14 +21,6 @@ from napari_bbox.boundingbox.napari_0_4_18 import (  # noqa: E402
     _bounding_box_3d as bbox_3d,
 )
 
-# TODO: clicking and dragging in 3D does not select/move boxes on
-# napari 0.4.18 and 0.4.19. Not investigated yet whether that is a limitation
-# of the plugin there or of how these tests emulate the mouse events.
-pytestmark = pytest.mark.skipif(
-    NAPARI_VERSION < "0.5.0",
-    reason="3D editing is not verified on napari<0.5",
-)
-
 VIEW_DIRECTION = (1.0, 0.0, 0.0)
 UP_DIRECTION = (0.0, -1.0, 0.0)
 
@@ -175,7 +167,8 @@ def test_drag_moves_selected_boxes_parallel_to_canvas():
     lo, hi = _box(layer, 1)
     np.testing.assert_allclose(lo, [0, 210, 220])
     assert layer.selected_data == {0, 1}
-    assert str(events[-1]) == 'changed'
+    # napari<0.4.19 has no "-ing"/"-ed" data event actions
+    assert str(events[-1]) == ('changed' if NAPARI_VERSION >= "0.4.19" else 'change')
 
 
 def test_drag_face_handle_resizes_box():

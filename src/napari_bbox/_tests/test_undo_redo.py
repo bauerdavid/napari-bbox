@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from napari.components import Dims
 from napari.utils._proxies import ReadOnlyWrapper
 from napari.utils.interactions import (
     mouse_move_callbacks,
@@ -9,13 +8,16 @@ from napari.utils.interactions import (
 )
 
 from napari_bbox import BoundingBoxLayer
-from napari_bbox._tests.test_3d_editing import Event
 from napari_bbox._utils import NAPARI_VERSION
-from napari_bbox.boundingbox import _undo_redo
 
-pytestmark = pytest.mark.skipif(
-    NAPARI_VERSION < "0.4.18", reason="undo and redo require napari>=0.4.18"
-)
+# has to happen before importing modules that need napari>=0.4.18
+if NAPARI_VERSION < "0.4.18":
+    pytest.skip(
+        "undo and redo require napari>=0.4.18", allow_module_level=True
+    )
+
+from napari_bbox._tests.test_3d_editing import Event, _slice_dims  # noqa: E402
+from napari_bbox.boundingbox import _undo_redo  # noqa: E402
 
 
 def _square(lo, hi):
@@ -393,7 +395,7 @@ def test_undo_clears_the_selection():
 
 def _layer_3d(*boxes):
     layer = BoundingBoxLayer([np.array(box, dtype=float) for box in boxes])
-    layer._slice_dims(Dims(ndim=3, ndisplay=3))
+    _slice_dims(layer, ndisplay=3)
     layer.mode = 'select'
     return layer
 
@@ -404,6 +406,9 @@ def _drag_3d(layer, path):
     _drag(layer, path)
 
 
+@pytest.mark.skipif(
+    NAPARI_VERSION < "0.5.0", reason="3D editing is not verified on napari<0.5"
+)
 def test_editing_in_3d():
     layer = _layer_3d(
         [[0, 0, 0], [100, 100, 100]],

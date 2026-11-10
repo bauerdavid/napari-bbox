@@ -17,11 +17,69 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    # The plugin ships a separate implementation per napari version range
+    # (src/napari_bbox/boundingbox/napari_*), so test the oldest and newest
+    # napari release that each of those implementations is used for.
+    name: napari ${{ matrix.napari }} / py${{ matrix.python-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # napari_0_4_15 implementation
+          - {os: ubuntu-latest, napari: "0.4.15", python-version: "3.9", qt: "pyqt5", extra: "numpy<2 pydantic<2 vispy<0.13"}
+          - {os: ubuntu-latest, napari: "0.4.17", python-version: "3.9", qt: "pyqt5", extra: "numpy<2 pydantic<2 vispy<0.13"}
+          # napari_0_4_18 implementation
+          - {os: ubuntu-latest, napari: "0.4.18", python-version: "3.10", qt: "pyqt5", extra: "numpy<2 pydantic<2 vispy<0.13"}
+          - {os: ubuntu-latest, napari: "0.4.19", python-version: "3.10", qt: "pyqt5", extra: "numpy<2"}
+          # napari_0_5_0 implementation
+          - {os: ubuntu-latest, napari: "0.5.0", python-version: "3.10", qt: "pyqt5", extra: ""}
+          - {os: ubuntu-latest, napari: "0.5.6", python-version: "3.12", qt: "pyqt5", extra: ""}
+          # napari_0_6_0 implementation
+          - {os: ubuntu-latest, napari: "0.6.0", python-version: "3.10", qt: "pyqt6", extra: ""}
+          - {os: ubuntu-latest, napari: "0.6.6", python-version: "3.12", qt: "pyqt6", extra: ""}
+          # napari_0_7_1 implementation
+          - {os: ubuntu-latest, napari: "0.7.1", python-version: "3.13", qt: "pyqt6", extra: ""}
+          # newest napari (also on the other platforms)
+          - {os: ubuntu-latest, napari: "0.10.0", python-version: "3.12", qt: "pyqt6", extra: ""}
+          - {os: windows-latest, napari: "0.10.0", python-version: "3.12", qt: "pyqt6", extra: ""}
+          - {os: macos-latest, napari: "0.10.0", python-version: "3.12", qt: "pyqt6", extra: ""}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # these libraries enable testing on Qt on linux
+      - uses: tlambert03/setup-qt-libs@v1
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "napari==${{ matrix.napari }}" ${{ matrix.qt }} ${{ matrix.extra }} pytest pytest-qt pandas -e .
+          python -m pip list
+
+      - name: Test (linux, headless)
+        if: runner.os == 'Linux'
+        uses: aganders3/headless-gui@v2
+        with:
+          run: python -m pytest -v --color=yes src
+
+      - name: Test
+        if: runner.os != 'Linux'
+        run: python -m pytest -v --color=yes src
+
   build_sdist:
     # this will run when you have tagged a commit, starting with "v*"
     # and requires that you have put your twine API key in your
     # github secrets (see readme for details)
     name: Build source distribution
+    needs: [test]
     if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:

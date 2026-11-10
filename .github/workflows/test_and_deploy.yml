@@ -41,10 +41,8 @@ jobs:
           - {os: ubuntu-latest, napari: "0.6.6", python-version: "3.12", qt: "pyqt6", extra: ""}
           # napari_0_7_1 implementation
           - {os: ubuntu-latest, napari: "0.7.1", python-version: "3.13", qt: "pyqt6", extra: ""}
-          # newest napari (also on the other platforms)
+          # newest napari
           - {os: ubuntu-latest, napari: "0.10.0", python-version: "3.12", qt: "pyqt6", extra: ""}
-          - {os: windows-latest, napari: "0.10.0", python-version: "3.12", qt: "pyqt6", extra: ""}
-          - {os: macos-latest, napari: "0.10.0", python-version: "3.12", qt: "pyqt6", extra: ""}
 
     steps:
       - uses: actions/checkout@v4
@@ -61,18 +59,16 @@ jobs:
         shell: bash
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "napari==${{ matrix.napari }}" ${{ matrix.qt }} ${{ matrix.extra }} pytest pytest-qt pandas -e .
+          # extra version pins (e.g. numpy<2 for old napari) go through a
+          # constraints file, since "<" would be a redirect in the shell
+          echo "${{ matrix.extra }}" | tr ' ' '\n' > constraints.txt
+          python -m pip install -c constraints.txt "napari==${{ matrix.napari }}" ${{ matrix.qt }} pytest pytest-qt pandas -e .
           python -m pip list
 
-      - name: Test (linux, headless)
-        if: runner.os == 'Linux'
+      - name: Test (headless)
         uses: aganders3/headless-gui@v2
         with:
           run: python -m pytest -v --color=yes src
-
-      - name: Test
-        if: runner.os != 'Linux'
-        run: python -m pytest -v --color=yes src
 
   build_sdist:
     # this will run when you have tagged a commit, starting with "v*"

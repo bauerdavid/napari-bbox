@@ -19,6 +19,7 @@ from napari._qt.widgets.qt_mode_buttons import (
 )
 from ...resources import cube_style_path
 from ..napari_0_4_15._bounding_box_constants import Mode
+from napari.settings import get_settings
 from napari.utils.interactions import Shortcut
 from napari.utils.translations import trans
 from superqt.sliders import QLabeledDoubleSlider, QLabeledSlider
@@ -65,6 +66,9 @@ class QtBoundingBoxControls(QtBoundingBoxControls):
         sld.setMaximum(200)
         sld.setSingleStep(1)
         value = self.layer.text.size
+        if value is None:
+            # napari>=0.10: ``None`` means "use the canvas default font size"
+            value = get_settings().appearance.font_size
         if isinstance(value, Iterable):
             if isinstance(value, list):
                 value = np.asarray(value)

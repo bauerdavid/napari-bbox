@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from napari.components import Dims
 from napari.utils._proxies import ReadOnlyWrapper
 from napari.utils.interactions import (
     mouse_move_callbacks,
@@ -9,13 +8,16 @@ from napari.utils.interactions import (
 )
 
 from napari_bbox import BoundingBoxLayer
-from napari_bbox._tests.test_3d_editing import Event
 from napari_bbox._utils import NAPARI_VERSION
-from napari_bbox.boundingbox import _undo_redo
 
-pytestmark = pytest.mark.skipif(
-    NAPARI_VERSION < "0.4.18", reason="undo and redo require napari>=0.4.18"
-)
+# has to happen before importing modules that need napari>=0.4.18
+if NAPARI_VERSION < "0.4.18":
+    pytest.skip(
+        "undo and redo require napari>=0.4.18", allow_module_level=True
+    )
+
+from napari_bbox._tests.test_3d_editing import Event, _slice_dims  # noqa: E402
+from napari_bbox.boundingbox import _undo_redo  # noqa: E402
 
 
 def _square(lo, hi):
@@ -353,6 +355,15 @@ def test_undo_during_a_drag_is_ignored():
     np.testing.assert_array_equal(layer.data[0], _square(*BOX_A))
 
 
+# napari<0.4.19 only knows the "completed" action names and no "-ing" ones
+if NAPARI_VERSION >= "0.4.19":
+    ADDED, REMOVED = 'added', 'removed'
+    CHANGE_EVENTS = [('changing', (0,)), ('changed', (0,))]
+else:
+    ADDED, REMOVED = 'add', 'remove'
+    CHANGE_EVENTS = [('change', (0,))]
+
+
 def test_undo_emits_completed_data_events():
     layer = _layer(BOX_A, BOX_B)
     layer.selected_data = {1}
@@ -360,15 +371,15 @@ def test_undo_emits_completed_data_events():
     events = []
     layer.events.data.connect(lambda e: events.append((str(getattr(e, 'action', None)), getattr(e, 'data_indices', None))))
     layer.undo()
-    assert events[-1] == ('added', (1,))
+    assert events[-1] == (ADDED, (1,))
     layer.redo()
-    assert events[-1] == ('removed', (1,))
+    assert events[-1] == (REMOVED, (1,))
     _drag(layer, [(20, 20)])
     _drag(layer, [(20, 20), (25, 25), (30, 30)])
     del events[:]
     layer.undo()
     # an undo is never left looking like an edit in progress
-    assert events == [('changing', (0,)), ('changed', (0,))]
+    assert events == CHANGE_EVENTS
     assert not layer._is_moving and not layer._is_creating
 
 
@@ -393,7 +404,7 @@ def test_undo_clears_the_selection():
 
 def _layer_3d(*boxes):
     layer = BoundingBoxLayer([np.array(box, dtype=float) for box in boxes])
-    layer._slice_dims(Dims(ndim=3, ndisplay=3))
+    _slice_dims(layer, ndisplay=3)
     layer.mode = 'select'
     return layer
 

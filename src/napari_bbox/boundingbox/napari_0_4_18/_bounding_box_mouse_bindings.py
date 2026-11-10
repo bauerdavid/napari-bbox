@@ -412,7 +412,11 @@ def _select_3d(layer, event):
     layer._set_highlight()
 
     start_position = np.asarray(event.position)
-    start_data = layer.world_to_data(start_position)[dims]
+    # napari<0.5 returns a tuple here
+    start_coordinates = np.asarray(layer.world_to_data(start_position))
+    start_data = start_coordinates[dims]
+    # napari<0.5 asserts this is set before ``layer._is_moving`` is set
+    layer._moving_coordinates = start_coordinates
     edited = sorted(layer.selected_data) if handle is None else [index]
     start_los, start_his = layer._box_bounds_3d(edited)
     if handle is not None:
@@ -462,7 +466,7 @@ def _select_3d(layer, event):
             layer._set_highlight(force=True)
         elif index is not None and not modify_selection and edited:
             # Move: shift selected boxes in the plane parallel to the canvas
-            shift = layer.world_to_data(np.asarray(event.position))[dims] - start_data
+            shift = np.asarray(layer.world_to_data(event.position))[dims] - start_data
             if not is_moving:
                 _emit_data_event(layer, edited, changing=True)
             is_moving = layer._is_moving = True
@@ -476,7 +480,7 @@ def _select_3d(layer, event):
             if modify_selection and index is not None and not layer._is_selecting:
                 layer.selected_data = layer.selected_data ^ {index}
             layer._is_selecting = True
-            coordinates = layer.world_to_data(np.asarray(event.position))[dims]
+            coordinates = np.asarray(layer.world_to_data(event.position))[dims]
             layer._drag_box = np.array([start_data, coordinates])
             layer._drag_normal = layer._world_to_displayed_data_ray(
                 event.view_direction, dims

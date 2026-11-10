@@ -631,6 +631,12 @@ class BoundingBoxLayer(UndoRedoMixin, BoundingBoxLayer):
         self.events.data(value=self.data)
         self._reset_editable()
 
+    def _reset_editable(self) -> None:
+        # Bounding boxes can be edited in 3D when the layer has 3 or more dims
+        # (napari<0.5 calls this while slicing, which must not turn editing
+        # off when switching to a 3D view)
+        self.editable = layer_ndisplay(self) == 2 or self.ndim >= 3
+
     def _on_selection(self, selected: bool):
         # this method is slated for removal.  don't add anything new.
         if not selected:

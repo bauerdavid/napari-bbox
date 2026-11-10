@@ -51,14 +51,26 @@ def hold_to_lock_aspect_ratio(layer: BoundingBoxLayer):
     layer._fixed_aspect = False
 
 
-@BoundingBoxLayer.bind_key(KeyMod.CtrlCmd | KeyCode.KeyZ, overwrite=True)
+if version.parse(napari.__version__) < version.parse("0.5.0"):
+    # napari<0.5 only accepts key combinations given as strings
+    UNDO_KEY = "Control-Z"
+    REDO_KEYS = ("Control-Shift-Z", "Control-Y")
+else:
+    UNDO_KEY = KeyMod.CtrlCmd | KeyCode.KeyZ
+    REDO_KEYS = (
+        KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyZ,
+        KeyMod.CtrlCmd | KeyCode.KeyY,
+    )
+
+
+@BoundingBoxLayer.bind_key(UNDO_KEY, overwrite=True)
 def undo(layer: BoundingBoxLayer):
     """Undo the last edit of the bounding boxes."""
     layer.undo()
 
 
-@BoundingBoxLayer.bind_key(KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyZ, overwrite=True)
-@BoundingBoxLayer.bind_key(KeyMod.CtrlCmd | KeyCode.KeyY, overwrite=True)
+@BoundingBoxLayer.bind_key(REDO_KEYS[0], overwrite=True)
+@BoundingBoxLayer.bind_key(REDO_KEYS[1], overwrite=True)
 def redo(layer: BoundingBoxLayer):
     """Redo the last undone edit of the bounding boxes."""
     layer.redo()

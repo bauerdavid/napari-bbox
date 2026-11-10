@@ -12,10 +12,13 @@ from napari.utils.interactions import (
 
 from napari_bbox import BoundingBoxLayer
 from napari_bbox._utils import NAPARI_VERSION
-from napari_bbox.boundingbox.napari_0_4_18 import _bounding_box_3d as bbox_3d
 
-pytestmark = pytest.mark.skipif(
-    NAPARI_VERSION < "0.4.18", reason="3D editing requires napari>=0.4.18"
+# has to happen before importing modules that need napari>=0.4.18
+if NAPARI_VERSION < "0.4.18":
+    pytest.skip("3D editing requires napari>=0.4.18", allow_module_level=True)
+
+from napari_bbox.boundingbox.napari_0_4_18 import (  # noqa: E402
+    _bounding_box_3d as bbox_3d,
 )
 
 VIEW_DIRECTION = (1.0, 0.0, 0.0)
@@ -39,9 +42,20 @@ def _bounds(lo, hi):
     return np.array([lo, hi], dtype=float)
 
 
+def _slice_dims(layer, ndisplay):
+    """Slice ``layer`` as the viewer would, whatever napari's signature."""
+    ndim = layer.ndim
+    if NAPARI_VERSION < "0.5.0":
+        layer._slice_dims(
+            point=(0,) * ndim, ndisplay=ndisplay, order=tuple(range(ndim))
+        )
+    else:
+        layer._slice_dims(Dims(ndim=ndim, ndisplay=ndisplay))
+
+
 def _layer_3d(*boxes):
     layer = BoundingBoxLayer([_bounds(lo, hi) for lo, hi in boxes])
-    layer._slice_dims(Dims(ndim=layer.ndim, ndisplay=3))
+    _slice_dims(layer, ndisplay=3)
     layer.mode = 'select'
     return layer
 
@@ -153,7 +167,8 @@ def test_drag_moves_selected_boxes_parallel_to_canvas():
     lo, hi = _box(layer, 1)
     np.testing.assert_allclose(lo, [0, 210, 220])
     assert layer.selected_data == {0, 1}
-    assert str(events[-1]) == 'changed'
+    # napari<0.4.19 has no "-ing"/"-ed" data event actions
+    assert str(events[-1]) == ('changed' if NAPARI_VERSION >= "0.4.19" else 'change')
 
 
 def test_drag_face_handle_resizes_box():
@@ -195,10 +210,10 @@ def test_add_mode_is_disabled_in_3d():
     layer.mode = 'add_bounding_box'
     assert layer.mode == 'select'
 
-    layer._slice_dims(Dims(ndim=3, ndisplay=2))
+    _slice_dims(layer, ndisplay=2)
     layer.mode = 'add_bounding_box'
     assert layer.mode == 'add_bounding_box'
-    layer._slice_dims(Dims(ndim=3, ndisplay=3))
+    _slice_dims(layer, ndisplay=3)
     assert layer.mode == 'select'
 
 

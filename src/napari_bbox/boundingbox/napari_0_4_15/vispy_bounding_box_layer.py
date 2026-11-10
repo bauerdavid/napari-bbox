@@ -4,10 +4,13 @@ from napari._vispy.layers.base import VispyBaseLayer
 from napari._vispy.utils.text import update_text
 from napari.utils.events import disconnect_events
 from napari.settings import get_settings
+import vispy
+from packaging import version
 from vispy.scene import Compound, Mesh, Line, Markers, Text
 
-from ..._utils import NAPARI_VERSION
 from ..._helper_functions import layer_ndisplay
+
+VISPY_VERSION = version.parse(vispy.__version__)
 
 
 class VispyBoundingBoxLayer(VispyBaseLayer):
@@ -142,7 +145,8 @@ class VispyBoundingBoxLayer(VispyBaseLayer):
             edge_color=edge_color,
             edge_width=width,
             symbol='square',
-            **({"scaling": False} if NAPARI_VERSION <= "0.11.0" else {}),
+            # vispy>=0.12 removed the ``scaling`` argument (it is set above)
+            **({"scaling": False} if VISPY_VERSION < version.parse("0.12") else {}),
         )
 
         if pos is None or len(pos) == 0:

@@ -954,11 +954,17 @@ class BoundingBoxLayer(Layer):
             The name of the attribute to set the color of.
             Should be 'edge' for edge_color or 'face' for face_color.
         """
-        transformed_color_cycle, transformed_colors = transform_color_cycle(
+        transformed = transform_color_cycle(
             color_cycle=color_cycle,
             elem_name=f'{attribute}_color_cycle',
             default="white",
         )
+        if isinstance(transformed, tuple):
+            transformed_color_cycle, transformed_colors = transformed
+        else:
+            # newer napari only returns the (N, 4) array of colors
+            transformed_colors = transformed
+            transformed_color_cycle = cycle(transformed_colors)
         setattr(self, f'_{attribute}_color_cycle_values', transformed_colors)
         setattr(self, f'_{attribute}_color_cycle', transformed_color_cycle)
 

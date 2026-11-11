@@ -359,12 +359,27 @@ class BoundingBoxLayer(UndoRedoMixin, BoundingBoxLayer):
         rotate=None,
         shear=None,
         affine=None,
+        axis_labels=None,
+        units=None,
+        projection_mode=None,
         opacity=0.7,
         blending='translucent',
         visible=True,
         cache=True,
         experimental_clipping_planes=None,
     ) -> None:
+        # napari>=0.5 includes these in the layer state, e.g. when duplicating
+        # a layer. They are only passed on if given, since older napari
+        # versions do not know them.
+        optional_layer_kwargs = {
+            key: value
+            for key, value in {
+                'axis_labels': axis_labels,
+                'units': units,
+                'projection_mode': projection_mode,
+            }.items()
+            if value is not None
+        }
         if data is None or len(data) == 0:
             if ndim is None:
                 ndim = 2
@@ -397,6 +412,7 @@ class BoundingBoxLayer(UndoRedoMixin, BoundingBoxLayer):
             visible=visible,
             cache=cache,
             experimental_clipping_planes=experimental_clipping_planes,
+            **optional_layer_kwargs,
         )
 
         self.events.add(

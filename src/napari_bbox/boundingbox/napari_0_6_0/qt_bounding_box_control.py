@@ -77,31 +77,37 @@ class QtBoundingBoxControls(QtBoundingBoxControls):
         sld.valueChanged.connect(self.changeTextSize)
         self.textSlider = sld
 
-        # Opacity slider (napari>=0.6 no longer provides opacitySlider on base)
-        opacity_sld = QLabeledDoubleSlider(Qt.Orientation.Horizontal)
-        opacity_sld.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        opacity_sld.setMinimum(0.0)
-        opacity_sld.setMaximum(1.0)
-        opacity_sld.setSingleStep(0.01)
-        opacity_sld.setValue(float(self.layer.opacity))
-        opacity_sld.valueChanged.connect(self._on_opacity_change)
-        self.opacitySlider = opacity_sld
-        self.layer.events.opacity.connect(self._on_layer_opacity_change)
+        # Later napari versions add the opacity and blending controls to the
+        # layout in the base class, adding them here as well would show the
+        # rows twice. Earlier ones (napari 0.6.0) do not, so they are created
+        # here.
+        self._base_has_opacity_blending = hasattr(
+            self, '_opacity_blending_controls'
+        )
+        if not self._base_has_opacity_blending:
+            opacity_sld = QLabeledDoubleSlider(Qt.Orientation.Horizontal)
+            opacity_sld.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+            opacity_sld.setMinimum(0.0)
+            opacity_sld.setMaximum(1.0)
+            opacity_sld.setSingleStep(0.01)
+            opacity_sld.setValue(float(self.layer.opacity))
+            opacity_sld.valueChanged.connect(self._on_opacity_slider_change)
+            self.opacitySlider = opacity_sld
+            self.layer.events.opacity.connect(self._on_layer_opacity_change)
 
-        # Blending combo (napari>=0.6 no longer provides blendComboBox on base)
-        blend_combo = QComboBox()
-        blending_modes = getattr(self.layer, "_blending_modes", None)
-        if blending_modes is None:
-            blending_modes = getattr(self.layer, "blending_modes", None)
-        if blending_modes is None:
-            blending_modes = ("opaque", "translucent", "additive")
-        for mode in blending_modes:
-            blend_combo.addItem(mode)
-        if self.layer.blending in blending_modes:
-            blend_combo.setCurrentText(self.layer.blending)
-        blend_combo.activated.connect(self._on_blend_combo_change)
-        self.blendComboBox = blend_combo
-        self.layer.events.blending.connect(self._on_layer_blending_change)
+            blend_combo = QComboBox()
+            blending_modes = getattr(self.layer, "_blending_modes", None)
+            if blending_modes is None:
+                blending_modes = getattr(self.layer, "blending_modes", None)
+            if blending_modes is None:
+                blending_modes = ("opaque", "translucent", "additive")
+            for mode in blending_modes:
+                blend_combo.addItem(mode)
+            if self.layer.blending in blending_modes:
+                blend_combo.setCurrentText(self.layer.blending)
+            blend_combo.activated.connect(self._on_blend_combo_change)
+            self.blendComboBox = blend_combo
+            self.layer.events.blending.connect(self._on_layer_blending_change)
 
         def _radio_button(
             parent,
@@ -220,9 +226,11 @@ class QtBoundingBoxControls(QtBoundingBoxControls):
         text_disp_cb.stateChanged.connect(self.change_text_visibility)
         self.textDispCheckBox = text_disp_cb
 
-        self.layout().addRow(trans._('opacity:'), self.opacitySlider)
+        if not self._base_has_opacity_blending:
+            self.layout().addRow(trans._('opacity:'), self.opacitySlider)
         self.layout().addRow(trans._('edge width:'), self.widthSlider)
-        self.layout().addRow(trans._('blending:'), self.blendComboBox)
+        if not self._base_has_opacity_blending:
+            self.layout().addRow(trans._('blending:'), self.blendComboBox)
         self.layout().addRow(trans._('size mode:'), self.bb_size_mode_combobox)
         self.layout().addRow(self.bb_size_mult_label, self.bb_size_mult_slider)
         self.layout().addRow(self.bb_size_const_label, self.bb_size_const_slider)
@@ -232,7 +240,10 @@ class QtBoundingBoxControls(QtBoundingBoxControls):
         self.layout().addRow(trans._('text color:'), self.textColorEdit)
         self.layout().addRow(trans._('text size:'), self.textSlider)
 
-    def _on_opacity_change(self, _=None):
+    # Not named ``_on_opacity_change``: that is the method of the base class
+    # (napari 0.6.0) that updates the slider from the layer, and overriding it
+    # with this one set the layer's opacity from the slider's initial value.
+    def _on_opacity_slider_change(self, _=None):
         value = self.opacitySlider.value()
         if self.layer.opacity != value:
             self.layer.opacity = value

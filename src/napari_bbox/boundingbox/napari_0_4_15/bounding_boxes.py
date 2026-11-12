@@ -453,6 +453,7 @@ class BoundingBoxLayer(Layer):
         # Trigger generation of view slice and thumbnail
         self._update_dims()
         self._mouse_down = False
+        self.events.scale.connect(self._on_world_scale_change)
 
     def _initialize_current_color_for_empty_layer(
         self, color: ColorType, attribute: str
@@ -1889,6 +1890,11 @@ class BoundingBoxLayer(Layer):
         self._ndisplay_stored = copy(layer_ndisplay(self))
         self._update_dims()
 
+    def _on_world_scale_change(self, event=None):
+        """The edges of the boxes are triangulated in world coordinates."""
+        self._data_view.world_scale = self.scale
+        self.refresh()
+
     def _add_bounding_boxes_to_view(self, bounding_box_inputs, data_view):
         """Build new bounding boxes and add them to the _data_view"""
         for d, ew, ec, fc, z in bounding_box_inputs:
@@ -1899,6 +1905,7 @@ class BoundingBoxLayer(Layer):
                 z_index=z,
                 dims_order=layer_dims_order(self),
                 ndisplay=layer_ndisplay(self),
+                world_scale=self.scale,
             )
 
             # Add bounding box

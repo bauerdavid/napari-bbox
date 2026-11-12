@@ -542,6 +542,7 @@ class BoundingBoxLayer(UndoRedoMixin, BoundingBoxLayer):
 
         # Trigger generation of view slice and thumbnail
         self._mouse_down = False
+        self.events.scale.connect(self._on_world_scale_change)
         self.refresh()
 
     def _initialize_current_color_for_empty_layer(
@@ -1014,6 +1015,7 @@ class BoundingBoxLayer(UndoRedoMixin, BoundingBoxLayer):
                     z_index=z,
                     dims_order=self._slice_input.order,
                     ndisplay=self._slice_input.ndisplay,
+                    world_scale=self.scale,
                 ),
                 ec,
                 fc,

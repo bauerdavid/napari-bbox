@@ -27,6 +27,10 @@ class BoundingBox(ABC):
         Order that the dimensions are to be rendered in.
     ndisplay : int
         Number of displayed dimensions.
+    world_scale : (D,) array, optional
+        Scale of the layer, from data to world coordinates. The thickness of
+        the edges is in world units, so it is the same along every dimension
+        also if the layer is scaled.
 
     Attributes
     ----------
@@ -87,9 +91,13 @@ class BoundingBox(ABC):
         z_index=0,
         dims_order=None,
         ndisplay=2,
+        world_scale=None,
     ) -> None:
         self._dims_order = dims_order or list(range(2))
         self._ndisplay = ndisplay
+        self._world_scale = (
+            None if world_scale is None else np.asarray(world_scale, dtype=float)
+        )
         self.slice_key = None
 
         self._face_vertices = np.empty((0, self.ndisplay))
@@ -186,6 +194,47 @@ class BoundingBox(ABC):
         )       
 
     @property
+    def world_scale(self):
+        """(D,) array or None: Scale from data to world coordinates."""
+        return self._world_scale
+
+    @world_scale.setter
+    def world_scale(self, world_scale):
+        world_scale = (
+            None if world_scale is None else np.asarray(world_scale, dtype=float)
+        )
+        if (
+            world_scale is None
+            and self._world_scale is None
+            or world_scale is not None
+            and self._world_scale is not None
+            and np.array_equal(world_scale, self._world_scale)
+        ):
+            return
+        self._world_scale = world_scale
+        self._update_displayed_data()
+
+    def _displayed_scale(self):
+        """(ndisplay,) array: Scale of the displayed dimensions."""
+        scale = self._world_scale
+        if scale is None or len(scale) != self._data.shape[1]:
+            return np.ones(len(self.dims_displayed))
+        return scale[list(self.dims_displayed)]
+
+    def _triangulate_edge(self, points, closed=True):
+        """Triangulate the edge of the displayed ``points``.
+
+        The edge is triangulated in world coordinates, so that its thickness is
+        the same in every direction, also if the layer is scaled. The result is
+        converted back to data coordinates, which are what is displayed.
+        """
+        scale = self._displayed_scale()
+        centers, offsets, triangles = triangulate_edge(
+            np.asarray(points) * scale, closed=closed
+        )
+        return centers / scale, offsets / scale, triangles
+
+    @property
     def ndisplay(self):
         """int: Number of displayed dimensions."""
         return self._ndisplay
@@ -276,7 +325,7 @@ class BoundingBox(ABC):
             Bool which determines if the edge need to be traingulated
         """
         if edge:
-            centers, offsets, triangles = triangulate_edge(data, closed=closed)
+            centers, offsets, triangles = self._triangulate_edge(data, closed=closed)
             self._edge_vertices = centers
             self._edge_offsets = offsets
             self._edge_triangles = triangles
@@ -332,7 +381,7 @@ class BoundingBox(ABC):
 
         points = self.data_displayed
 
-        centers, offsets, triangles = triangulate_edge(
+        centers, offsets, triangles = self._triangulate_edge(
             points, closed=True
         )
         self._edge_vertices = centers

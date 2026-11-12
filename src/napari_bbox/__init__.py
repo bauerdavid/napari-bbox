@@ -1,4 +1,4 @@
-__version__ = "0.1.2"
+__version__ = "0.2.0"
 import numpy as np
 from packaging import version
 from napari import layers

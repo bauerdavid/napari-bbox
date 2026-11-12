@@ -199,11 +199,24 @@ requires Qt6.
 - Support for napari 0.10.
 - A CI test suite that runs against napari 0.4.15 up to 0.10.
 
+**Changed**
+
+- In a layer with a scale, the thickness of the edges (`edge_width`) and the size
+  of new boxes along the dimensions that are not displayed (average mode and the
+  size constant) are in world units, so they do not depend on the scale.
+  Layers without a scale are not affected.
+
 **Fixed**
 
 - *Duplicate Layer* raised an error on napari 0.5 and newer.
 - Removing the last bounding box left it displayed.
 - Clearing a layer raised an error on napari 0.4.15 with vispy 0.12 or newer.
+- The opacity and blending rows of the layer controls were shown twice on napari
+  0.6 and newer, and a new layer had an opacity of 0 on napari 0.6.0.
+- Boxes drawn in a layer with a scale were stretched along the scaled axes in the
+  dimensions that are not displayed.
+- The edges of the boxes were stretched along the scaled axes in layers with a
+  scale, e.g. the 3D tubes became flat ribbons.
 
 ## Contributing
 

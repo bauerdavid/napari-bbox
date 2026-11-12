@@ -125,12 +125,14 @@ def add_bounding_box(layer, event) -> None:
     event: MouseEvent
         A proxy read only wrapper around a vispy mouse event.
     """
+    # the size is in world units, which have to be converted to the data
+    # units of every dimension, as the layer can be scaled
     size = layer._vertex_size * layer.scale_factor / 4
     coordinates = layer.world_to_data(event.position)
     corner = np.array(coordinates).reshape(1, -1)
 
     data = np.tile(corner, (2**layer.ndim, 1))
-    sizes = np.eye(layer.ndim)*size
+    sizes = np.diag(size / np.asarray(layer.scale, dtype=float))
     s_idx = [[]]
     for d in range(layer.ndim):
         s_idx.extend(list(e.copy()+[d] for e in s_idx))
@@ -160,18 +162,24 @@ def _add_bounding_box(layer, event, data):
         # Drag any selected bounding boxes
         coordinates = layer.world_to_data(event.position)
         _move(layer, coordinates)
+        # The size along the dimensions that are not displayed is set in world
+        # units, so it does not depend on the scale of the layer. The half size
+        # is converted to the data units of each dimension.
+        scale = np.asarray(layer.scale, dtype=float)
         min = data.min(0)
         max = data.max(0)
         size = max-min
-        visible_size = size[layer_dims_displayed(layer)]
+        visible_size = (size * scale)[layer_dims_displayed(layer)]
         max[layer_dims_displayed(layer)] = np.nan
         min[layer_dims_displayed(layer)] = np.nan
         if layer.size_mode == "average":
-            data[:] = np.where(data == max, coordinates+visible_size.mean()/2*layer.size_multiplier, data)
-            data[:] = np.where(data == min, coordinates-visible_size.mean()/2*layer.size_multiplier, data)
+            half_size = visible_size.mean()/2*layer.size_multiplier/scale
+            data[:] = np.where(data == max, coordinates+half_size, data)
+            data[:] = np.where(data == min, coordinates-half_size, data)
         elif not const_set and layer.size_mode == "constant":
-            data[:] = np.where(data == max, np.asarray(coordinates) + layer.size_constant/2, data)
-            data[:] = np.where(data == min, np.asarray(coordinates) - layer.size_constant/2, data)
+            half_size = layer.size_constant/2/scale
+            data[:] = np.where(data == max, np.asarray(coordinates) + half_size, data)
+            data[:] = np.where(data == min, np.asarray(coordinates) - half_size, data)
             const_set = True
         yield
 

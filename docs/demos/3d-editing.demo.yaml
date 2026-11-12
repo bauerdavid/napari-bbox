@@ -1,0 +1,42 @@
+# Rendered with napari-demo-recorder:
+#   napari-demo-recorder render docs/demos/3d-editing.demo.yaml
+demo: 1
+title: Editing bounding boxes in 3D
+app: napari
+window: {size: [1280, 800]}
+style: {cursor_scale: 1.3}
+output:
+  path: ../3d-editing.gif
+  fps: 12
+  scale: 0.75
+  max_size: 5MB
+  readme: {path: ../../README.md, name: 3d-editing}
+setup:
+  - python: bbox_demo_setup:setup_3d
+# Every change of the view is an interaction (a click, a key or a mouse drag).
+# Canvas points are fractions [x, y] of the canvas, data coordinates are not
+# available in 3D views.
+steps:
+  - caption: "Switch to the 3D view"
+  - click: {button: Toggle 3D, parent: napari, highlight: true}
+  - hold: 0.6
+  - caption: "Select and move boxes in 3D (key 2)"
+  - key: "2"
+  - click: {canvas: [[0.663, 0.392]], coords: fraction}
+  - drag: {canvas: [[0.663, 0.392], [0.724, 0.294]], coords: fraction}
+  - hold: 0.4
+  - caption: "Rotate the view by dragging (key 3 for pan/zoom)"
+  - key: "3"
+  - drag: {canvas: [[0.25, 0.80], [0.45, 0.62]], coords: fraction}
+  - hold: 0.6
+  - caption: "Drag a visible face handle to resize a box (key 2)"
+  - key: "2"
+  - click: {canvas: [[0.547, 0.687]], coords: fraction}
+  - hold: 0.6
+  - drag: {canvas: [[0.577, 0.646], [0.628, 0.586]], coords: fraction}
+  - hold: 0.6
+  - caption: "Undo and redo work in 3D, too"
+  - key: {keys: "Ctrl+Z", times: 2}
+  - hold: 0.5
+  - key: "Ctrl+Shift+Z"
+  - hold: 1.2

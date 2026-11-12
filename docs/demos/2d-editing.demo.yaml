@@ -1,0 +1,35 @@
+# Rendered with napari-demo-recorder:
+#   napari-demo-recorder render docs/demos/2d-editing.demo.yaml
+demo: 1
+title: Drawing and editing bounding boxes in 2D
+app: napari
+window: {size: [1280, 800]}
+style: {cursor_scale: 1.3}
+output:
+  path: ../2d-editing.gif
+  fps: 12
+  scale: 0.75
+  max_size: 5MB
+  readme: {path: ../../README.md, name: 2d-editing}
+setup:
+  - python: bbox_demo_setup:setup_2d
+  - open_plugin: [napari-bbox, Bounding Box Creator]
+steps:
+  - caption: "Create a bounding box layer"
+  - click: {button: Create, parent: Bounding Box Creator, highlight: true}
+  - caption: "Draw boxes in add mode (key 4)"
+  - key: "4"
+  - drag: {canvas: [[38, 43], [72, 77]]}
+  - drag: {canvas: [[147, 167], [183, 203]]}
+  - drag: {canvas: [[188, 83], [223, 118]]}
+  - hold: 0.4
+  - caption: "Select, move and resize them (key 2)"
+  - key: "2"
+  - drag: {canvas: [[165, 185], [150, 215]]}
+  - drag: {canvas: [[132, 197], [112, 177]]}      # a corner handle of the selected box
+  - hold: 0.4
+  - caption: "Undo and redo with Ctrl+Z and Ctrl+Shift+Z"
+  - key: {keys: "Ctrl+Z", times: 2}
+  - hold: 0.4
+  - key: "Ctrl+Shift+Z"
+  - hold: 1.2

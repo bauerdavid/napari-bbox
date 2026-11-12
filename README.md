@@ -162,12 +162,30 @@ To install latest development version :
 
 ## Compatibility
 
-`napari-bbox` supports Python 3.9 and newer and napari 0.4.15 and newer. It has a
-separate implementation for each range of napari versions, and the test suite
-runs in CI on Linux with napari 0.4.15, 0.4.17, 0.4.18, 0.4.19, 0.5.0, 0.5.6,
-0.6.0, 0.6.6, 0.7.1 and 0.10.0, so that all of them keep working. Undo/redo and
-editing in 3D need napari 0.4.18 or newer. napari 0.10 requires Python 3.11 or
-newer and Qt6.
+`napari-bbox` supports **Python 3.9 and newer** and **napari 0.4.15 and newer**.
+
+### Supported napari versions
+
+| napari | Python | Undo/redo and 3D editing | Tested in CI |
+| --- | --- | :---: | --- |
+| 0.4.15 – 0.4.17 | 3.9+ | no | 0.4.15, 0.4.17 |
+| 0.4.18 – 0.4.19 | 3.9+ | yes | 0.4.18, 0.4.19 |
+| 0.5.x | 3.9+ | yes | 0.5.0, 0.5.6 |
+| 0.6.x – 0.7.x | 3.10+ | yes | 0.6.0, 0.6.6, 0.7.1 |
+| 0.8.x – 0.10.x | 3.11+ | yes | 0.10.0 |
+
+The Python versions are the ones napari itself requires. napari 0.10 also
+requires Qt6.
+
+### Testing
+
+- The test suite runs in CI on every push and pull request, against the napari
+  versions in the last column. `napari-bbox` has a separate implementation for
+  each range of napari versions, and these are the oldest and newest releases
+  of each of them.
+- The tests run on Linux. Windows and macOS are not covered by CI.
+- Other releases within the ranges above, such as 0.4.16, 0.5.3 or 0.9.2, are
+  not tested separately.
 
 ## Changelog
 

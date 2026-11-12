@@ -59,6 +59,7 @@ class BoundingBoxList:
 
     def __init__(self, data=(), ndisplay=2) -> None:
         self._ndisplay = ndisplay
+        self._world_scale = None
         self.bounding_boxes = []
         self._displayed = []
         self._slice_key = []
@@ -102,6 +103,31 @@ class BoundingBoxList:
             self.remove(index, renumber=False)
             self.add(bounding_box, bounding_box_index=index)
         self._update_z_order()
+
+    @property
+    def world_scale(self):
+        """(D,) array or None: Scale from data to world coordinates."""
+        return self._world_scale
+
+    @world_scale.setter
+    def world_scale(self, world_scale):
+        """Set the scale of the layer, which the edges of the boxes depend on.
+
+        Only the vertices of the edges change, so the mesh is updated in place.
+        """
+        self._world_scale = (
+            None if world_scale is None else np.asarray(world_scale, dtype=float)
+        )
+        for index, bounding_box in enumerate(self.bounding_boxes):
+            bounding_box.world_scale = self._world_scale
+            indices = np.all(self._mesh.vertices_index == [index, 1], axis=1)
+            self._mesh.vertices[indices] = (
+                bounding_box._edge_vertices
+                + bounding_box.edge_width * bounding_box._edge_offsets
+            )
+            self._mesh.vertices_centers[indices] = bounding_box._edge_vertices
+            self._mesh.vertices_offsets[indices] = bounding_box._edge_offsets
+        self._update_displayed()
 
     @property
     def slice_keys(self):
